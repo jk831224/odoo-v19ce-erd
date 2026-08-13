@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Odoo 19 銷售鏈 ERD — sale / stock / account</title>
+<style>
+:root {
+  --ink: #1a1a18; --ink-soft: #55534d; --ink-faint: #8a8780;
+  --paper: #fffdf9; --paper-alt: #f5f2ea; --rule: #ddd8cc;
+  --accent: #7a2e2e; --accent-bg: #f7ecec;
+  --sans: "PingFang TC", "Helvetica Neue", system-ui, sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e6e3dc; --ink-soft: #b0aca3; --ink-faint: #7d7a73;
+    --paper: #14140f; --paper-alt: #1e1e18; --rule: #33322b;
+    --accent: #d98b8b; --accent-bg: #2a1c1c;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 2.5rem 2rem 6rem;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--sans); font-size: 16px; line-height: 1.7;
+}
+header { max-width: 52rem; margin: 0 auto 2rem; }
+h1 { font-size: 1.9rem; font-weight: 500; margin: 0 0 .3rem; }
+.sub { color: var(--ink-soft); margin: 0 0 1.2rem; }
+.provenance {
+  font-family: var(--mono); font-size: .78rem; color: var(--ink-faint);
+  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+  padding: .7rem 0; margin: 0;
+}
+main { max-width: 52rem; margin: 0 auto; }
+h2 {
+  font-size: 1.2rem; font-weight: 500; margin: 2.5rem 0 .8rem;
+  padding-top: 1.2rem; border-top: 1px solid var(--rule);
+}
+p { margin: .9rem 0; }
+code {
+  font-family: var(--mono); font-size: .87em;
+  background: var(--paper-alt); padding: .1em .35em; border-radius: 3px;
+}
+ul { padding-left: 1.3rem; }
+li { margin: .45rem 0; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: .9rem; }
+th {
+  text-align: left; font-size: .75rem; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--ink-faint); border-bottom: 1.5px solid var(--ink-soft); padding: .45rem .6rem;
+}
+td { padding: .5rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+
+#toolbar {
+  max-width: 52rem; margin: 0 auto 0; display: flex; gap: .5rem; align-items: center;
+  flex-wrap: wrap; padding-bottom: .7rem;
+}
+#toolbar button {
+  font: inherit; font-size: .85rem; padding: .35rem .8rem;
+  border: 1.5px solid var(--rule); border-radius: 5px;
+  background: var(--paper-alt); color: var(--ink); cursor: pointer;
+}
+#toolbar button:hover { border-color: var(--ink-faint); }
+#zoomval { font-family: var(--mono); font-size: .8rem; color: var(--ink-faint); }
+
+#viewport {
+  border: 1.5px solid var(--rule); border-radius: 8px;
+  background: var(--paper-alt);
+  overflow: auto; max-height: 82vh; padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+#canvas { transform-origin: 0 0; }
+.mermaid { display: block; }
+#fallback {
+  display: none; padding: 1.2rem; border-left: 3px solid var(--accent);
+  background: var(--accent-bg); font-size: .9rem; border-radius: 4px;
+}
+.legend { display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: .85rem; color: var(--ink-soft); margin: 1rem 0 0; }
+.legend code { font-size: .95em; }
+.note { border-left: 3px solid var(--ink-faint); background: var(--paper-alt); padding: .9rem 1.1rem; margin: 1.3rem 0; font-size: .93rem; }
+.note b { font-weight: 500; }
+@media print {
+  body { padding: 0; }
+  #toolbar { display: none; }
+  #viewport { max-height: none; overflow: visible; border: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Odoo 19 銷售鏈 ERD</h1>
+  <p class="sub">sale → stock → account，含 res.partner 與 product 雙層。Crow's foot 記號。</p>
+  <p class="provenance">
+    資料來源：odoo-dev-19 的 ir_model_fields（74 個模組已裝）· 查詢日期 2026-08-13<br>
+    粒度：主鍵、外鍵、必填欄位。非必填的一般欄位未列出。
+  </p>
+</header>
+
+<div id="toolbar">
+  <button id="zoomout">縮小</button>
+  <button id="zoomin">放大</button>
+  <button id="zoomreset">還原</button>
+  <span id="zoomval">100%</span>
+</div>
+
+<div id="viewport">
+  <div id="canvas">
+<pre class="mermaid">
+erDiagram
+    res_partner["res.partner"] {
+        integer id PK
+        many2one parent_id FK "選填 set-null 自身"
+        many2one commercial_partner_id FK "選填 set-null 自身"
+        selection autopost_bills "required"
+        selection group_on "required"
+        selection group_rfq "required"
+    }
+
+    product_template["product.template"] {
+        integer id PK
+        char name "required"
+        many2one uom_id FK "required restrict 圖外"
+        selection type "required"
+        selection tracking "required"
+        selection service_tracking "required"
+    }
+
+    product_product["product.product"] {
+        integer id PK
+        many2one product_tmpl_id FK "required cascade"
+    }
+
+    sale_order["sale.order"] {
+        integer id PK
+        many2one partner_id FK "required restrict"
+        many2one partner_invoice_id FK "required restrict"
+        many2one partner_shipping_id FK "required restrict"
+        many2one company_id FK "required restrict 圖外"
+        char name "required"
+        datetime date_order "required"
+        selection picking_policy "required"
+    }
+
+    sale_order_line["sale.order.line"] {
+        integer id PK
+        many2one order_id FK "required cascade"
+        many2one product_id FK "選填 restrict"
+        many2one order_partner_id FK "選填"
+        many2one linked_line_id FK "選填 cascade 自身"
+        text name "required"
+        float product_uom_qty "required"
+        float price_unit "required"
+        float customer_lead "required"
+    }
+
+    stock_picking["stock.picking"] {
+        integer id PK
+        many2one sale_id FK "選填 set-null"
+        many2one partner_id FK "選填 set-null"
+        many2one owner_id FK "選填 set-null"
+        many2one backorder_id FK "選填 set-null 自身"
+        many2one return_id FK "選填 set-null 自身"
+        many2one location_id FK "required restrict 圖外"
+        many2one location_dest_id FK "required restrict 圖外"
+        many2one picking_type_id FK "required restrict 圖外"
+        selection move_type "required"
+    }
+
+    stock_move["stock.move"] {
+        integer id PK
+        many2one picking_id FK "選填 set-null"
+        many2one sale_line_id FK "選填 set-null"
+        many2one account_move_id FK "選填 set-null"
+        many2one product_id FK "required restrict"
+        many2one partner_id FK "選填 set-null"
+        many2one restrict_partner_id FK "選填 set-null"
+        many2one origin_returned_move_id FK "選填 set-null 自身"
+        many2one company_id FK "required restrict 圖外"
+        many2one location_id FK "required restrict 圖外"
+        many2one location_dest_id FK "required restrict 圖外"
+        many2one product_uom FK "required restrict 圖外"
+        datetime date "required"
+        float product_uom_qty "required"
+        selection procure_method "required"
+    }
+
+    account_move["account.move"] {
+        integer id PK
+        many2one partner_id FK "選填 restrict"
+        many2one commercial_partner_id FK "選填 restrict"
+        many2one partner_shipping_id FK "選填 set-null"
+        many2one reversed_entry_id FK "選填 set-null 自身"
+        many2one auto_post_origin_id FK "選填 set-null 自身"
+        many2one tax_cash_basis_origin_move_id FK "選填 set-null 自身"
+        many2one journal_id FK "required restrict 圖外"
+        many2one currency_id FK "required restrict 圖外"
+        date date "required"
+        selection move_type "required"
+        selection state "required"
+        selection auto_post "required"
+    }
+
+    account_move_line["account.move.line"] {
+        integer id PK
+        many2one move_id FK "required cascade"
+        many2one partner_id FK "選填 restrict"
+        many2one product_id FK "選填 restrict"
+        many2one cogs_origin_id FK "選填 set-null 自身"
+        many2one currency_id FK "required restrict 圖外"
+        selection display_type "required"
+    }
+
+    sale_order_line_invoice_rel["sale_order_line_invoice_rel"] {
+        integer order_line_id PK,FK "NOT NULL cascade"
+        integer invoice_line_id PK,FK "NOT NULL cascade"
+    }
+
+    stock_move_move_rel["stock_move_move_rel"] {
+        integer move_orig_id PK,FK "NOT NULL cascade"
+        integer move_dest_id PK,FK "NOT NULL cascade"
+    }
+
+    res_partner ||--o{ sale_order : "partner_id"
+    res_partner ||--o{ sale_order : "partner_invoice_id"
+    res_partner ||--o{ sale_order : "partner_shipping_id"
+    res_partner |o--o{ sale_order_line : "order_partner_id"
+    res_partner |o--o{ stock_picking : "partner_id"
+    res_partner |o--o{ stock_picking : "owner_id"
+    res_partner |o--o{ stock_move : "partner_id"
+    res_partner |o--o{ stock_move : "restrict_partner_id"
+    res_partner |o--o{ account_move : "partner_id"
+    res_partner |o--o{ account_move : "commercial_partner_id"
+    res_partner |o--o{ account_move : "partner_shipping_id"
+    res_partner |o--o{ account_move_line : "partner_id"
+    res_partner |o--o{ res_partner : "parent_id / commercial_partner_id"
+
+    product_template ||--o{ product_product : "product_tmpl_id"
+    product_product |o--o{ sale_order_line : "product_id"
+    product_product ||--o{ stock_move : "product_id"
+    product_product |o--o{ account_move_line : "product_id"
+
+    sale_order ||--o{ sale_order_line : "order_id"
+    sale_order |o--o{ stock_picking : "sale_id"
+    sale_order_line |o--o{ sale_order_line : "linked_line_id"
+    sale_order_line |o--o{ stock_move : "sale_line_id"
+
+    sale_order_line ||--o{ sale_order_line_invoice_rel : "order_line_id"
+    account_move_line ||--o{ sale_order_line_invoice_rel : "invoice_line_id"
+
+    stock_picking |o--o{ stock_move : "picking_id"
+    stock_picking |o--o{ stock_picking : "backorder_id / return_id"
+    stock_move |o--o{ stock_move : "origin_returned_move_id"
+    stock_move ||--o{ stock_move_move_rel : "move_orig_id"
+    stock_move ||--o{ stock_move_move_rel : "move_dest_id"
+
+    account_move ||--o{ account_move_line : "move_id"
+    account_move |o--o{ stock_move : "account_move_id"
+    account_move |o--o{ account_move : "reversed_entry_id / auto_post_origin_id / tax_cash_basis_origin_move_id"
+    account_move_line |o--o{ account_move_line : "cogs_origin_id"
+</pre>
+  </div>
+</div>
+
+<div id="fallback">
+  Mermaid 沒有載入成功。這份 HTML 從 CDN（jsdelivr）載入 mermaid 11，需要網路連線。
+  離線要看的話告訴我，我把 mermaid 內嵌進檔案，或改產出靜態 SVG。
+</div>
+
+<main>
+
+<div class="legend">
+  <span><code>||--o{</code> 一對多，且外鍵必填</span>
+  <span><code>|o--o{</code> 一對多，外鍵可為空</span>
+  <span><code>PK,FK</code> 中介表的複合主鍵</span>
+</div>
+
+<h2>怎麼讀這張圖</h2>
+
+<p>關係線上的標籤是<strong>外鍵欄位名</strong>，不是關係名稱。這是刻意的——你在 debug mode 的 Fields 清單裡看到的就是這個名字，兩邊對得上。</p>
+
+<p>線的左端記號決定了刪除行為的嚴重性。<code>||</code>（恰好一個）代表那個外鍵是 <code>required</code>，沒有它這筆資料根本建不起來；<code>|o</code>（零或一）代表可以留空。</p>
+
+<table>
+<thead><tr><th>on_delete</th><th>意思</th><th>本圖中的例子</th></tr></thead>
+<tbody>
+<tr><td><code>cascade</code></td><td>父記錄刪掉，子記錄一起消失</td><td><code>sale.order.line.order_id</code>、<code>account.move.line.move_id</code>、<code>product.product.product_tmpl_id</code></td></tr>
+<tr><td><code>restrict</code></td><td>還有人指著就不准刪</td><td><code>sale.order.partner_id</code>、<code>stock.move.product_id</code></td></tr>
+<tr><td><code>set null</code></td><td>父記錄刪掉，欄位變空，子記錄留著</td><td><code>stock.move.picking_id</code>、<code>stock.picking.sale_id</code></td></tr>
+</tbody>
+</table>
+
+<h2>圖上值得注意的幾件事</h2>
+
+<div class="note">
+<p><b>一、<code>res.partner</code> 有三條線通往同一張 <code>sale.order</code>。</b></p>
+<p><code>partner_id</code>、<code>partner_invoice_id</code>、<code>partner_shipping_id</code> 三個都是 <code>required</code> + <code>restrict</code>。它們是三個獨立的外鍵，語義是下單方、開票方、收貨方。原生就支援三者不同——不需要為此加欄位。</p>
+</div>
+
+<div class="note">
+<p><b>二、<code>sale.order.line.product_id</code> 不是必填。</b></p>
+<p>訂單明細可以沒有商品。這是給區段標題與備註行用的（<code>display_type</code> 之類）。但 <code>stock.move.product_id</code> 是 <code>required</code>——庫存移動必須有東西在動。同一個欄位名，兩邊的必填性相反。</p>
+</div>
+
+<div class="note">
+<p><b>三、訂單與發票之間唯一的實體關聯在明細層。</b></p>
+<p><code>sale.order.line</code> 與 <code>account.move.line</code> 之間是多對多，圖上依 ERD 慣例展開成中介表 <code>sale_order_line_invoice_rel</code>。它是真實存在的資料庫表，沒有 <code>id</code> 欄位，主鍵是 <code>(invoice_line_id, order_line_id)</code> 複合鍵，兩個外鍵都是 <code>ON DELETE CASCADE</code>——刪掉訂單明細，開票關聯記錄跟著消失，但發票明細本身留著。</p>
+<p>單頭層的 <code>sale.order.invoice_ids</code> 是 <code>store=false</code> 的計算欄位，資料庫裡沒有這個欄位，所以圖上沒有 <code>sale.order</code> 直通 <code>account.move</code> 的線。</p>
+</div>
+
+<div class="note">
+<p><b>四、<code>res.partner</code> 的 <code>name</code> 不是 required。</b></p>
+<p>它在資料庫層沒有 NOT NULL。<code>res.partner</code> 僅有的三個必填欄位是 <code>autopost_bills</code>、<code>group_on</code>、<code>group_rfq</code>，全是 selection。名稱的約束在 ORM 層，不在 schema 層。</p>
+</div>
+
+<div class="note">
+<p><b>五、圖內範圍有十條自我參照的 many2one，另有一組自我多對多。</b></p>
+<p>Odoo 大量用自我參照處理「同類型但有前後關係」的資料。下表的標籤欄位是 Odoo 自己的 <code>field_description</code>，不是我的翻譯：</p>
+<table>
+<thead><tr><th>欄位</th><th>Odoo 的標籤</th><th>on_delete</th></tr></thead>
+<tbody>
+<tr><td><code>res.partner.parent_id</code></td><td>Related Company</td><td>set null</td></tr>
+<tr><td><code>res.partner.commercial_partner_id</code></td><td>Commercial Entity</td><td>set null</td></tr>
+<tr><td><code>sale.order.line.linked_line_id</code></td><td>Linked Order Line</td><td>cascade</td></tr>
+<tr><td><code>stock.picking.backorder_id</code></td><td>Back Order of</td><td>set null</td></tr>
+<tr><td><code>stock.picking.return_id</code></td><td>Return of</td><td>set null</td></tr>
+<tr><td><code>stock.move.origin_returned_move_id</code></td><td>Origin return move</td><td>set null</td></tr>
+<tr><td><code>account.move.reversed_entry_id</code></td><td>Reversal of</td><td>set null</td></tr>
+<tr><td><code>account.move.auto_post_origin_id</code></td><td>First recurring entry</td><td>set null</td></tr>
+<tr><td><code>account.move.tax_cash_basis_origin_move_id</code></td><td>Cash Basis Origin</td><td>set null</td></tr>
+<tr><td><code>account.move.line.cogs_origin_id</code></td><td>Cogs Origin</td><td>set null</td></tr>
+</tbody>
+</table>
+<p>圖上把同一個實體的多條自我參照畫成一條線、標籤以斜線並列（例如 <code>res.partner</code> 那條寫著 <code>parent_id / commercial_partner_id</code>）。這是為了繞開 Mermaid 的一個限制：同一對實體之間畫多條自我參照時，它只會渲染最後一條的標籤，其餘的標籤會消失。實際關係數以上表為準。</p>
+<p>唯一的自我多對多是 <code>stock.move</code> 的補貨鏈，中介表 <code>stock_move_move_rel</code>，兩個方向分別叫 <code>move_orig_ids</code>（Original Move）與 <code>move_dest_ids</code>（Destination Moves）。Odoo 的 help 說明它用於串接前後的庫存移動。</p>
+</div>
+
+<h2>這張圖沒有畫的</h2>
+
+<ul>
+<li><strong>圖外實體。</strong><code>res.company</code>、<code>res.currency</code>、<code>account.journal</code>、<code>stock.location</code>、<code>uom.uom</code>、<code>stock.picking.type</code> 沒有畫成實體，但它們的外鍵已列在屬性中，標記為「圖外」。全部都是 <code>required</code>。</li>
+<li><strong>非必填的一般欄位。</strong>依你指定的粒度，只列了主鍵、外鍵、必填欄位。<code>sale.order</code> 實際上有 100 個以上的欄位。</li>
+<li><strong>指向圖外的非必填外鍵。</strong>例如 <code>sale.order.journal_id</code>、<code>account.move.line.tax_line_id</code>。全列會讓每個實體長到讀不動。</li>
+<li><strong>一對多的反向欄位。</strong>ERD 的關係線已經表達了一對多，所以 <code>order_line</code>、<code>move_ids</code>、<code>line_ids</code> 這些 one2many 沒有另外列成屬性——它們在資料庫裡也沒有實體欄位。</li>
+<li><strong>兩組沒有展開的多對多。</strong><code>account.move</code> 的調整分錄（中介表 <code>adjusting_entries__account_move</code>，欄位 <code>adjusting_entries_move_ids</code> / <code>adjusting_entry_origin_move_ids</code>）與 <code>product.template.optional_product_ids</code> 選配商品（中介表 <code>product_optional_rel</code>）都是 <code>store=true</code> 的真實中介表，但不在銷售主線上，沒有畫進來。</li>
+</ul>
+
+<h2>自己重跑這份資料</h2>
+
+<p>這張圖的每一條線都來自下面這個查詢。改 model 清單就能得到別的範圍：</p>
+
+<pre style="background: var(--paper-alt); padding: 1rem 1.2rem; overflow-x: auto; font-size: .82rem; border-left: 3px solid var(--rule); font-family: var(--mono); line-height: 1.6;">psql -U odoo -d odoo-dev-19 -c "
+WITH s AS (SELECT unnest(ARRAY['sale.order','sale.order.line']) AS m)
+SELECT m.model, f.name, f.ttype, f.relation, f.required, f.on_delete, f.store
+FROM ir_model_fields f JOIN ir_model m ON f.model_id=m.id
+WHERE m.model IN (SELECT m FROM s) AND f.store IS TRUE
+ORDER BY m.model, f.required DESC, f.name;"</pre>
+
+<p>UI 上的等價路徑是 debug mode 開啟後的 <code>設定 → 技術 → 資料庫結構 → 欄位</code>，或任一畫面的 debug 選單 → Fields。</p>
+
+</main>
+
+<script type="module">
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+try {
+  const { default: mermaid } = await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: dark ? 'dark' : 'neutral',
+    er: { useMaxWidth: false, entityPadding: 12, minEntityWidth: 130 }
+  });
+  await mermaid.run({ querySelector: '.mermaid' });
+} catch (e) {
+  document.getElementById('fallback').style.display = 'block';
+  console.error(e);
+}
+
+let z = 1;
+const canvas = document.getElementById('canvas');
+const label = document.getElementById('zoomval');
+function apply() {
+  canvas.style.transform = 'scale(' + z + ')';
+  label.textContent = Math.round(z * 100) + '%';
+}
+document.getElementById('zoomin').onclick = () => { z = Math.min(z * 1.25, 4); apply(); };
+document.getElementById('zoomout').onclick = () => { z = Math.max(z / 1.25, 0.25); apply(); };
+document.getElementById('zoomreset').onclick = () => { z = 1; apply(); };
+</script>
+
+</body>
+</html>

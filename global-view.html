@@ -1,0 +1,1051 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Odoo v19 CE 版 ERD 全景圖</title>
+<style>
+:root {
+  --paper:      #faf7f0;
+  --dots:       #ddd7c8;
+  --surface:    #fffdf9;
+  --surface-2:  #f2eee4;
+  --ink:        #1a1a18;
+  --ink-soft:   #55534d;
+  --ink-faint:  #737068;
+  --rule:       #ddd8cc;
+  --rule-soft:  #e8e3d7;
+  --accent:     #7a2e2e;
+  --accent-bg:  #f7ecec;
+  --warn:       #8a5a12;
+  --warn-bg:    #faf1de;
+  --ok:         #2c5a3e;
+  --ok-bg:      #eaf2ec;
+  --shadow:     0 1px 2px rgba(32,28,20,.05), 0 8px 24px -8px rgba(32,28,20,.18);
+  --shadow-sm:  0 1px 2px rgba(32,28,20,.06), 0 3px 8px -3px rgba(32,28,20,.14);
+  --sans: "PingFang TC", "Helvetica Neue", system-ui, sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, monospace;
+  --t-xs: .7rem;
+  --t-sm: .79rem;
+  --t-md: .89rem;
+  --t-lg: 1rem;
+  --r: 7px;
+  --panel-w: 25rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper:      #100f0c;
+    --dots:       #2a2822;
+    --surface:    #1b1a15;
+    --surface-2:  #24231c;
+    --ink:        #e8e5de;
+    --ink-soft:   #b2aea4;
+    --ink-faint:  #8d897f;
+    --rule:       #35342c;
+    --rule-soft:  #2b2a23;
+    --accent:     #dd9494;
+    --accent-bg:  #2c1d1d;
+    --warn:       #dcb069;
+    --warn-bg:    #2b2216;
+    --ok:         #93cca8;
+    --ok-bg:      #17251a;
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 8px 24px -8px rgba(0,0,0,.6);
+    --shadow-sm:  0 1px 2px rgba(0,0,0,.4), 0 3px 8px -3px rgba(0,0,0,.5);
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--sans); font-size: 15px; line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+/* ── 畫布 ─────────────────────────────────────── */
+#stage {
+  position: fixed; inset: 0;
+  background-color: var(--paper);
+  background-image: radial-gradient(circle at 1px 1px, var(--dots) 1px, transparent 0);
+  background-size: 28px 28px;
+  cursor: grab; touch-action: none; overscroll-behavior: none;
+}
+#stage.dragging { cursor: grabbing; }
+#stage.dragging #world { transition: none; }
+#world { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; }
+#world.eased { transition: transform 260ms cubic-bezier(.22,.61,.36,1); }
+.mermaid { display: block; }
+#world svg { display: block; overflow: visible; }
+
+g.node { cursor: pointer; }
+g.node rect { transition: stroke 140ms ease; }
+g.node.hot rect:first-of-type { stroke: var(--accent); stroke-width: 2.5px; }
+#world.dim g.node:not(.hot) { opacity: .38; transition: opacity 160ms ease; }
+
+/* ── 工具列 ───────────────────────────────────── */
+#bar {
+  position: fixed; top: 1rem; left: 1rem; right: 1rem; z-index: 40;
+  display: flex; align-items: center; gap: .75rem; pointer-events: none;
+}
+#title {
+  pointer-events: auto;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r);
+  box-shadow: var(--shadow-sm); padding: .5rem .9rem;
+  display: flex; align-items: baseline; gap: .6rem; min-width: 0;
+}
+#title b { font-weight: 500; font-size: var(--t-lg); white-space: nowrap; }
+#title span { font-size: var(--t-sm); color: var(--ink-faint); font-family: var(--mono); white-space: nowrap; }
+#spacer { flex: 1; }
+.cluster {
+  pointer-events: auto; display: flex; align-items: center; gap: 2px;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r);
+  box-shadow: var(--shadow-sm); padding: 3px;
+}
+.tbtn {
+  appearance: none; border: 0; background: transparent; color: var(--ink-soft);
+  font: inherit; font-size: var(--t-md); line-height: 1;
+  height: 30px; min-width: 30px; padding: 0 .45rem; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
+  cursor: pointer; transition: background 140ms ease, color 140ms ease;
+}
+.tbtn:hover { background: var(--surface-2); color: var(--ink); }
+.tbtn:active { background: var(--rule-soft); }
+.tbtn[aria-pressed="true"] { background: var(--accent-bg); color: var(--accent); }
+.tbtn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+#zoomlabel {
+  font-family: var(--mono); font-size: var(--t-sm); color: var(--ink-faint);
+  min-width: 3.6rem; text-align: center; font-variant-numeric: tabular-nums;
+}
+.vr { width: 1px; height: 18px; background: var(--rule); margin: 0 3px; }
+
+/* ── hover 卡 ─────────────────────────────────── */
+#tip {
+  position: fixed; z-index: 60; max-width: 21rem; pointer-events: none;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r);
+  box-shadow: var(--shadow); padding: .8rem .95rem;
+  opacity: 0; transform: translateY(3px); transition: opacity 130ms ease, transform 130ms ease;
+}
+#tip.show { opacity: 1; transform: translateY(0); }
+#tip h4 { margin: 0 0 .1rem; font-family: var(--mono); font-size: var(--t-md); font-weight: 500; color: var(--ink); }
+#tip .role { font-size: var(--t-sm); color: var(--ink-faint); margin-bottom: .5rem; }
+#tip dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: .18rem .7rem; font-size: var(--t-md); }
+#tip dt { color: var(--ink-faint); white-space: nowrap; }
+#tip dd { margin: 0; color: var(--ink-soft); }
+#tip dd b { font-weight: 500; color: var(--ink); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+#tip .flag {
+  margin-top: .55rem; padding-top: .5rem; border-top: 1px solid var(--rule-soft);
+  font-size: var(--t-sm); line-height: 1.55; color: var(--ink-soft);
+}
+#tip .flag.w { color: var(--warn); }
+#tip code { font-family: var(--mono); font-size: .9em; background: var(--surface-2); padding: .05em .3em; border-radius: 3px; }
+
+/* ── 面板 ─────────────────────────────────────── */
+#panel {
+  position: fixed; top: 0; right: 0; bottom: 0; width: var(--panel-w); z-index: 50;
+  background: var(--surface); border-left: 1px solid var(--rule);
+  box-shadow: -12px 0 32px -20px rgba(32,28,20,.4);
+  display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform 240ms cubic-bezier(.22,.61,.36,1);
+}
+#panel.open { transform: translateX(0); }
+@media (prefers-color-scheme: dark) { #panel { box-shadow: -12px 0 32px -20px rgba(0,0,0,.8); } }
+#panel header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.1rem .9rem; border-bottom: 1px solid var(--rule); flex-shrink: 0;
+}
+#panel header h2 { margin: 0; font-size: var(--t-lg); font-weight: 500; }
+#panel .body { overflow-y: auto; padding: .3rem 1.1rem 3rem; flex: 1; }
+
+details.sec { border-bottom: 1px solid var(--rule-soft); }
+details.sec > summary {
+  list-style: none; cursor: pointer; padding: .85rem 0;
+  display: flex; align-items: center; gap: .55rem;
+  font-size: var(--t-md); font-weight: 500; color: var(--ink);
+  transition: color 140ms ease;
+}
+details.sec > summary::-webkit-details-marker { display: none; }
+details.sec > summary:hover { color: var(--accent); }
+details.sec > summary .chev { width: 14px; height: 14px; stroke: var(--ink-faint); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform 200ms ease; flex-shrink: 0; }
+details.sec[open] > summary .chev { transform: rotate(90deg); }
+details.sec .in { padding: 0 0 1.1rem 1.35rem; font-size: var(--t-md); line-height: 1.7; color: var(--ink-soft); }
+details.sec .in > :first-child { margin-top: 0; }
+details.sec .in > :last-child { margin-bottom: 0; }
+details.sec .in p { margin: .7rem 0; }
+details.sec .in strong { color: var(--ink); font-weight: 500; }
+
+.idx { display: flex; flex-direction: column; gap: 1px; }
+.idx h6 {
+  margin: 1rem 0 .35rem; font-size: var(--t-xs); font-weight: 500; color: var(--ink-faint);
+  letter-spacing: .05em; text-transform: uppercase;
+}
+.idx h6:first-child { margin-top: 0; }
+.idx button {
+  display: flex; align-items: baseline; gap: .6rem; width: 100%; text-align: left;
+  font: inherit; padding: .38rem .5rem; border: 0; border-radius: 5px;
+  background: transparent; color: var(--ink); cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.idx button:hover { background: var(--surface-2); }
+.idx button:active { background: var(--rule-soft); }
+.idx button.here { background: var(--accent-bg); color: var(--accent); }
+.idx button b {
+  font-family: var(--mono); font-size: var(--t-sm); font-weight: 400;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.idx button i {
+  font-style: normal; font-size: var(--t-xs); color: var(--ink-faint);
+  margin-left: auto; white-space: nowrap; flex-shrink: 0;
+}
+.idx button:hover i, .idx button.here i { color: inherit; opacity: .75; }
+.fact { background: var(--surface-2); border: 1px solid var(--rule-soft); border-radius: 6px; padding: .7rem .85rem; margin: .8rem 0; }
+.fact.w { background: var(--warn-bg); border-color: color-mix(in srgb, var(--warn) 28%, transparent); }
+.fact.a { background: var(--accent-bg); border-color: color-mix(in srgb, var(--accent) 26%, transparent); }
+.fact > :first-child { margin-top: 0; } .fact > :last-child { margin-bottom: 0; }
+.fact h5 { margin: 0 0 .35rem; font-size: var(--t-md); font-weight: 500; color: var(--ink); }
+
+code { font-family: var(--mono); font-size: .9em; background: var(--surface-2); padding: .08em .32em; border-radius: 3px; word-break: break-word; }
+.fact.w code, .fact.a code { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+pre { background: var(--surface-2); border: 1px solid var(--rule-soft); border-radius: 6px; padding: .7rem .8rem; overflow-x: auto; font-family: var(--mono); font-size: var(--t-sm); line-height: 1.6; margin: .7rem 0; color: var(--ink-soft); }
+table { border-collapse: collapse; width: 100%; margin: .7rem 0; font-size: var(--t-md); }
+th { text-align: left; font-size: var(--t-xs); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-faint); border-bottom: 1px solid var(--ink-faint); padding: .32rem .4rem; font-weight: 500; }
+td { padding: .38rem .4rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+td.n { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+ol.steps { margin: .7rem 0; padding-left: 0; list-style: none; counter-reset: s; }
+ol.steps li { counter-increment: s; position: relative; padding-left: 1.75rem; margin: .55rem 0; }
+ol.steps li::before {
+  content: counter(s); position: absolute; left: 0; top: .12rem;
+  width: 1.2rem; height: 1.2rem; border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--rule);
+  color: var(--ink-faint); font-family: var(--mono); font-size: var(--t-xs);
+  display: flex; align-items: center; justify-content: center;
+}
+ul.tight { margin: .6rem 0; padding-left: 1.1rem; }
+ul.tight li { margin: .4rem 0; }
+
+#hint {
+  position: fixed; left: 1rem; bottom: 1rem; z-index: 40;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r);
+  box-shadow: var(--shadow-sm); padding: .5rem .8rem;
+  font-size: var(--t-sm); color: var(--ink-faint);
+  display: flex; gap: .9rem; flex-wrap: wrap;
+  transition: opacity 400ms ease;
+}
+#hint.fade { opacity: 0; pointer-events: none; }
+#hint kbd {
+  font-family: var(--mono); font-size: .9em; background: var(--surface-2);
+  border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px;
+  padding: .05em .35em; color: var(--ink-soft);
+}
+#boot {
+  position: fixed; inset: 0; z-index: 65; display: grid; place-items: center;
+  background: var(--paper); transition: opacity 260ms ease;
+}
+#boot.gone { opacity: 0; pointer-events: none; }
+#boot p {
+  margin: 0; font-size: var(--t-md); color: var(--ink-faint);
+  display: flex; align-items: center; gap: .6rem;
+}
+#boot i {
+  width: 13px; height: 13px; border-radius: 50%; display: block;
+  border: 2px solid var(--rule); border-top-color: var(--ink-faint);
+  animation: spin 700ms linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #boot i { animation-duration: 2s; } }
+#err {
+  position: fixed; inset: 0; display: none; place-items: center; z-index: 70; padding: 2rem;
+  background: var(--paper);
+}
+#err div { max-width: 30rem; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); padding: 1.4rem 1.6rem; box-shadow: var(--shadow); font-size: var(--t-md); line-height: 1.7; }
+
+@media (max-width: 860px) {
+  :root { --panel-w: 100%; }
+  #panel { border-left: 0; }
+  #title span { display: none; }
+  #hint { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="world">
+<pre class="mermaid">
+erDiagram
+    res_partner["res.partner"] {
+        integer id PK
+        char name "CHECK 條件式必填"
+        selection type "contact invoice delivery other"
+        boolean is_company
+        many2one parent_id FK "自身 set-null"
+        integer customer_rank "整數非布林"
+        integer supplier_rank "整數非布林"
+        char vat "統一編號"
+        char email
+        char phone
+        char street
+        char zip
+        char city "純文字"
+        many2one country_id FK "選填"
+        many2one state_id FK "選填"
+        many2one city_id FK "選填"
+        many2one industry_id FK "選填"
+        many2one user_id FK "compute 可覆寫"
+        many2one buyer_id FK "選填"
+        many2one company_id FK "選填"
+        many2one property_payment_term_id FK "客戶付款條件"
+        many2one property_supplier_payment_term_id FK "供應商付款條件"
+        many2one property_account_receivable_id FK "應收科目"
+        many2one property_account_payable_id FK "應付科目"
+        selection autopost_bills "required 有預設"
+        selection group_on "required 有預設"
+        selection group_rfq "required 有預設"
+    }
+    res_country["res.country"] {
+        integer id PK
+        char code "required"
+        char name "required"
+    }
+    res_country_state["res.country.state"] {
+        integer id PK
+        char code "required"
+        char name "required"
+        many2one country_id FK "required"
+    }
+    res_city["res.city"] {
+        integer id PK
+        char name "required"
+        many2one country_id FK "required"
+        many2one state_id FK "選填"
+    }
+    res_partner_category["res.partner.category"] {
+        integer id PK
+        char name "required"
+        many2one parent_id FK "自身 標籤有階層"
+    }
+    partner_category_rel["res_partner_res_partner_category_rel"] {
+        integer partner_id PK,FK "NOT NULL"
+        integer category_id PK,FK "NOT NULL"
+    }
+    res_partner_industry["res.partner.industry"] {
+        integer id PK
+        char name "非必填"
+    }
+    res_users["res.users"] {
+        integer id PK
+        many2one partner_id FK "required"
+    }
+    res_company["res.company"] {
+        integer id PK
+        many2one partner_id FK "required"
+    }
+    res_partner_bank["res.partner.bank"] {
+        integer id PK
+        char acc_number "required"
+        many2one partner_id FK "required"
+        selection l10n_us_bank_account_type "required 預設 checking"
+    }
+    account_payment_term["account.payment.term"] {
+        integer id PK
+        char name "required"
+        integer sequence "required"
+    }
+    account_account["account.account"] {
+        integer id PK
+        char name "required"
+        selection account_type "required"
+    }
+
+    product_template["product.template"] {
+        integer id PK
+        char name "required"
+        many2one uom_id FK "required restrict"
+        many2one categ_id FK "選填 set-null"
+        many2one company_id FK "選填 set-null"
+        selection type "required"
+        selection tracking "required"
+        selection service_tracking "required"
+    }
+    product_product["product.product"] {
+        integer id PK
+        many2one product_tmpl_id FK "required cascade"
+    }
+    product_category["product.category"] {
+        integer id PK
+        char name "required"
+        many2one parent_id FK "自身 cascade"
+    }
+    uom_uom["uom.uom"] {
+        integer id PK
+        char name "required"
+        float relative_factor "required"
+        many2one relative_uom_id FK "自身 cascade"
+        float factor "絕對數量"
+        char parent_path "階層索引"
+    }
+    product_uom["product.uom"] {
+        integer id PK
+        char barcode "required"
+        many2one product_id FK "required cascade"
+        many2one uom_id FK "required cascade"
+    }
+    product_supplierinfo["product.supplierinfo"] {
+        integer id PK
+        many2one partner_id FK "required cascade"
+        many2one product_tmpl_id FK "required cascade"
+        many2one product_uom_id FK "required restrict"
+        many2one currency_id FK "required restrict 圖外"
+        many2one product_id FK "選填 set-null"
+        float min_qty "required"
+        integer delay "required"
+    }
+    product_attribute["product.attribute"] {
+        integer id PK
+        char name "required"
+        selection create_variant "required"
+        selection display_type "required"
+    }
+    product_attribute_value["product.attribute.value"] {
+        integer id PK
+        char name "required"
+        many2one attribute_id FK "required cascade"
+    }
+    ptal["product.template.attribute.line"] {
+        integer id PK
+        many2one product_tmpl_id FK "required cascade"
+        many2one attribute_id FK "required restrict"
+    }
+    ptav["product.template.attribute.value"] {
+        integer id PK
+        many2one attribute_line_id FK "required cascade"
+        many2one product_attribute_value_id FK "required cascade"
+    }
+    variant_combination["product_variant_combination"] {
+        integer product_product_id PK,FK "NOT NULL cascade"
+        integer product_template_attribute_value_id PK,FK "NOT NULL restrict"
+    }
+    pav_ptal_rel["product_attribute_value_product_template_attribute_line_rel"] {
+        integer product_attribute_value_id PK,FK "NOT NULL restrict"
+        integer product_template_attribute_line_id PK,FK "NOT NULL cascade"
+    }
+
+    res_country ||--o{ res_country_state : "country_id"
+    res_country ||--o{ res_city : "country_id"
+    res_country_state |o--o{ res_city : "state_id"
+    res_country |o--o{ res_partner : "country_id"
+    res_country_state |o--o{ res_partner : "state_id"
+    res_city |o--o{ res_partner : "city_id"
+    res_partner_industry |o--o{ res_partner : "industry_id"
+    res_users |o--o{ res_partner : "user_id"
+    res_users |o--o{ res_partner : "buyer_id"
+    res_company |o--o{ res_partner : "company_id"
+    res_partner |o--o{ res_partner : "parent_id / commercial_partner_id"
+    res_partner ||--o{ partner_category_rel : "partner_id"
+    res_partner_category ||--o{ partner_category_rel : "category_id"
+    res_partner_category |o--o{ res_partner_category : "parent_id"
+    res_partner ||--o{ res_partner_bank : "partner_id"
+    res_partner ||--o{ res_users : "partner_id"
+    res_partner ||--o{ res_company : "partner_id"
+    account_payment_term |o--o{ res_partner : "property_payment_term_id"
+    account_payment_term |o--o{ res_partner : "property_supplier_payment_term_id"
+    account_account |o--o{ res_partner : "property_account_receivable_id"
+    account_account |o--o{ res_partner : "property_account_payable_id"
+
+    product_template ||--o{ product_product : "product_tmpl_id"
+    product_category |o--o{ product_template : "categ_id"
+    product_category |o--o{ product_category : "parent_id"
+    uom_uom ||--o{ product_template : "uom_id"
+    uom_uom |o--o{ uom_uom : "relative_uom_id"
+    res_company |o--o{ product_template : "company_id"
+
+    product_product ||--o{ product_uom : "product_id"
+    uom_uom ||--o{ product_uom : "uom_id"
+
+    res_partner ||--o{ product_supplierinfo : "partner_id"
+    product_template ||--o{ product_supplierinfo : "product_tmpl_id"
+    uom_uom ||--o{ product_supplierinfo : "product_uom_id"
+    product_product |o--o{ product_supplierinfo : "product_id"
+
+    product_attribute ||--o{ product_attribute_value : "attribute_id"
+    product_attribute ||--o{ ptal : "attribute_id"
+    product_template ||--o{ ptal : "product_tmpl_id"
+    ptal ||--o{ ptav : "attribute_line_id"
+    product_attribute_value ||--o{ ptav : "product_attribute_value_id"
+
+    product_product ||--o{ variant_combination : "product_product_id"
+    ptav ||--o{ variant_combination : "product_template_attribute_value_id"
+    product_attribute_value ||--o{ pav_ptal_rel : "product_attribute_value_id"
+    ptal ||--o{ pav_ptal_rel : "product_template_attribute_line_id"
+</pre>
+  </div>
+</div>
+
+<div id="bar">
+  <div id="title">
+    <b>Odoo v19 CE 版 ERD 全景圖</b>
+    <span>聯絡人 + 商品主檔 · 24 個實體</span>
+  </div>
+  <div id="spacer"></div>
+  <div class="cluster">
+    <button class="tbtn" id="zout" aria-label="縮小" title="縮小　−"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+    <span id="zoomlabel">100%</span>
+    <button class="tbtn" id="zin" aria-label="放大" title="放大　+"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    <span class="vr"></span>
+    <button class="tbtn" id="fit" title="全圖適配　0"><svg viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></svg>適配</button>
+    <button class="tbtn" id="one" title="實際大小　1">1:1</button>
+  </div>
+  <div class="cluster">
+    <button class="tbtn" id="toggle" aria-pressed="false" aria-controls="panel" title="說明　I"><svg viewBox="0 0 24 24"><path d="M4 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM14 4v16"/></svg>說明</button>
+  </div>
+</div>
+
+<div id="tip" role="tooltip" aria-hidden="true"></div>
+
+<aside id="panel" aria-label="說明">
+  <header>
+    <h2>說明</h2>
+    <button class="tbtn" id="close" aria-label="收合說明"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </header>
+  <div class="body">
+
+    <details class="sec" open>
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>實體索引</summary>
+      <div class="in">
+        <p style="margin-top:0">點任一項飛到該實體並放大。全圖適配時框內文字太小讀不了，用這裡定位比自己找快。</p>
+        <div class="idx" id="idx"></div>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>這張圖現在涵蓋什麼</summary>
+      <div class="in">
+        <div class="fact w">
+          <p><strong>標題寫「全景圖」，但目前畫了兩塊。</strong>聯絡人與商品主檔，共 24 個實體。Odoo 19 CE 的完整 model 數量遠大於此，不要把這張圖當成完整的資料庫地圖。</p>
+        </div>
+        <p><strong>第一塊 · 聯絡人</strong>：<code>res.partner</code> 為中心，加上 <code>res.country</code>、<code>res.country.state</code>、<code>res.city</code>、<code>res.partner.category</code> 與其 m2m 中介表、<code>res.partner.industry</code>、<code>res.users</code>、<code>res.company</code>、<code>res.partner.bank</code>、<code>account.payment.term</code>、<code>account.account</code>。</p>
+        <p><strong>第二塊 · 商品主檔</strong>：<code>product.template</code> / <code>product.product</code> 雙層，加上 <code>product.category</code> 分類樹、<code>uom.uom</code>、<code>product.uom</code> 條碼表、<code>product.supplierinfo</code> 供應商價目，以及產生變體的四層屬性系統（<code>product.attribute</code>、<code>product.attribute.value</code>、<code>product.template.attribute.line</code>、<code>product.template.attribute.value</code>）與兩張中介表。</p>
+        <p><strong>兩塊的接縫</strong>：<code>product.supplierinfo.partner_id</code> 指向 <code>res.partner</code>，且是 <code>required</code> + <code>cascade</code>。供應商價目是商品與聯絡人唯一的直接連結。</p>
+        <p><strong>已畫但不在這一張裡</strong>：銷售鏈（<code>sale.order</code> → <code>stock.picking</code> → <code>account.move</code> 與其明細層，含 9 個實體）在同一資料夾的 <code>sale-chain.html</code>。那張圖的 <code>res.partner</code> 與 <code>product.product</code> 就是這裡的同一批記錄。</p>
+        <p><strong>尚未畫</strong>：採購鏈、庫存內部（<code>stock.quant</code>、<code>stock.location</code> 階層、補貨鏈）、會計側的對帳與稅務、價目表規則（<code>product.pricelist.item</code>）、商品標籤、製造、專案、人資，以及所有 <code>l10n_*</code> 在地化模組加上的欄位。</p>
+        <p><strong>資料來源</strong>：<code>odoo-dev-19</code> 資料庫的 <code>ir_model_fields</code> 與 PostgreSQL 系統表，74 個模組已安裝（含 <code>l10n_tw</code>、<code>base_vat</code>）。查詢日期 2026-08-13。裝不同的模組會得到不同的欄位集合，這張圖反映的是這一套環境。</p>
+      </div>
+    </details>
+
+    <details class="sec" open>
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>三條會擋住你的硬約束</summary>
+      <div class="in">
+        <div class="fact a">
+          <h5>name 是條件式必填</h5>
+          <p>資料庫層有一條 CHECK 約束 <code>res_partner_check_name</code>：</p>
+          <pre>((type)::text = 'contact'::text AND name IS NOT NULL)
+OR ((type)::text &lt;&gt; 'contact'::text)</pre>
+          <p>只有 <code>type='contact'</code> 強制要有名字，地址型記錄（<code>invoice</code>、<code>delivery</code>）可以沒有。這就是為什麼 <code>name</code> 在欄位定義上不是 <code>required</code>：約束在表層而非欄位層，所以 debug mode 的 Fields 清單看不到它。</p>
+        </div>
+        <div class="fact a">
+          <h5>沒有任何 UNIQUE 約束</h5>
+          <p><code>res_partner</code> 表除了主鍵之外沒有唯一鍵。資料庫允許你匯入兩筆完全相同的聯絡人，重複匯入不會被擋。去重必須在匯入前自己做，或依賴匯入介面的 External ID 對應。</p>
+        </div>
+        <div class="fact a">
+          <h5>DB 層 NOT NULL 只有四欄</h5>
+          <p><code>id</code>、<code>autopost_bills</code>、<code>group_on</code>、<code>group_rfq</code>。後三個都是 selection 且有預設值，不填也會自動帶入。除了 name 那條 CHECK，資料庫幾乎不會攔你。資料品質完全靠匯入前把關。</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>type 的四個值</summary>
+      <div class="in">
+        <table>
+          <thead><tr><th>值</th><th>Odoo 標籤</th><th class="n">seq</th><th>name 必填</th></tr></thead>
+          <tbody>
+            <tr><td><code>contact</code></td><td>Contact</td><td class="n">0</td><td>是</td></tr>
+            <tr><td><code>invoice</code></td><td>Invoice</td><td class="n">1</td><td>否</td></tr>
+            <tr><td><code>delivery</code></td><td>Delivery</td><td class="n">2</td><td>否</td></tr>
+            <tr><td><code>other</code></td><td>Other</td><td class="n">3</td><td>否</td></tr>
+          </tbody>
+        </table>
+        <p>目前資料庫裡 45 筆聯絡人全部是 <code>contact</code>，一筆 <code>invoice</code> 或 <code>delivery</code> 都沒有。如果客戶有「帳單地址與收貨地址不同」的需求，那是這個環境還沒出現過的資料型態，值得先手動建一筆走完流程。</p>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>商品雙層：variant 上有 15 個假欄位</summary>
+      <div class="in">
+        <p><code>product.template</code> 有 71 個 <code>store</code> 欄位，<code>product.product</code> 只有 37 個。差距不是因為變體資訊少，而是因為<strong>變體層上有 15 個欄位在資料庫裡根本不存在</strong>，它們全部 <code>related</code> 到 <code>product_tmpl_id.*</code>：</p>
+        <div class="fact a">
+          <p><code>name</code>、<code>list_price</code>、<code>categ_id</code>、<code>uom_id</code>、<code>type</code>、<code>tracking</code>、<code>company_id</code>、<code>sale_ok</code>、<code>purchase_ok</code>、<code>description_sale</code>、<code>taxes_id</code>、<code>supplier_taxes_id</code>、<code>seller_ids</code>、<code>attribute_line_ids</code>、<code>product_variant_ids</code></p>
+        </div>
+        <p>連<strong>商品名稱與售價都只存在 template 層</strong>。ORM 會自動穿透，所以 UI 上兩邊都看得到、也都能編輯（寫進去實際是寫到 template）。但如果你直接下 SQL 查 <code>product_product.name</code>，那一欄不存在。</p>
+        <p>對導入的意思很直接：<strong>商品的內容匯到 <code>product.template</code>，不是 <code>product.product</code></strong>。變體是 Odoo 依屬性自動產生的，不是你匯出來的。目前這套環境有 37 個 template 對 47 個 variant。</p>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>Odoo 19 把計量單位改版了</summary>
+      <div class="in">
+        <div class="fact w">
+          <p><strong><code>uom.category</code> 這個 model 在 19 已經不存在。</strong>如果你手上有 18 或更早的匯入範本，裡面的單位分類欄位在這裡無處可填。</p>
+        </div>
+        <p>新的結構是<strong>單位之間直接相對參照</strong>：<code>uom.uom.relative_uom_id</code> 指向另一個 <code>uom.uom</code>（標籤是 Reference Unit），搭配 <code>relative_factor</code>（Contains，<code>required</code>）表示換算倍數，並用 <code>parent_path</code> 維護階層索引。換句話說，單位形成一棵樹，而不是分組在 category 底下。</p>
+        <p>另外多出一張 <code>product.uom</code>（Link between products and their UoMs），三個必填欄位是 <code>barcode</code>、<code>product_id</code>、<code>uom_id</code>。它讓同一個商品的不同包裝單位各有自己的條碼，取代舊版的 <code>product.packaging</code>。注意它指向 <code>product.product</code>（變體層），不是 template。</p>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>變體是怎麼被產生出來的</summary>
+      <div class="in">
+        <p>屬性系統有四層，圖上右下角那一群。每一層的職責不同：</p>
+        <table>
+          <thead><tr><th>層</th><th>回答什麼問題</th><th class="n">現有</th></tr></thead>
+          <tbody>
+            <tr><td><code>product.attribute</code></td><td>系統裡有哪些屬性（顏色、尺寸）</td><td class="n">11</td></tr>
+            <tr><td><code>product.attribute.value</code></td><td>每個屬性有哪些值（紅、藍、L）</td><td class="n">101</td></tr>
+            <tr><td><code>...template.attribute.line</code></td><td>這個商品有哪個屬性</td><td class="n">—</td></tr>
+            <tr><td><code>...template.attribute.value</code></td><td>這個商品的這個值，可單獨加價</td><td class="n">—</td></tr>
+          </tbody>
+        </table>
+        <p>前兩層是<strong>全域共用</strong>的字典，後兩層是<strong>綁在特定商品上</strong>的。變體本身則定義在中介表 <code>product_variant_combination</code>：一筆 <code>product.product</code> 對上一組 <code>...template.attribute.value</code>，就是「紅色 + L 號」那一件。</p>
+        <p><code>product.attribute.create_variant</code> 是 <code>required</code> 的 selection，它決定這個屬性到底會不會實際產生變體記錄。有些屬性只是顯示用，不該讓變體數量爆炸。</p>
+        <div class="fact w">
+          <p><code>product_variant_combination</code> 的兩個外鍵方向不對稱：對 <code>product.product</code> 是 <code>cascade</code>（刪變體，組合記錄跟著消失），對 <code>...template.attribute.value</code> 是 <code>restrict</code>（屬性值只要還被任何變體用著就刪不掉）。</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>debug mode 看不出來的事</summary>
+      <div class="in">
+        <p><code>store</code> 這個旗標<strong>不足以</strong>判斷一個欄位能不能匯入，實際有三種狀態：</p>
+        <table>
+          <thead><tr><th>狀態</th><th>能匯嗎</th><th>例子</th></tr></thead>
+          <tbody>
+            <tr><td><code>store=false</code></td><td>不能，DB 沒這欄</td><td><code>company_type</code></td></tr>
+            <tr><td><code>compute</code> + <code>store</code> + <code>readonly=False</code></td><td><strong>能</strong>，不填自動算</td><td><code>user_id</code></td></tr>
+            <tr><td><code>compute</code> + <code>store</code></td><td>不能，會被重算覆蓋</td><td><code>commercial_partner_id</code>、<code>complete_name</code></td></tr>
+          </tbody>
+        </table>
+        <div class="fact w">
+          <h5>為什麼 debug mode 幫不上這個忙</h5>
+          <p><code>ir_model_fields</code> 有一個 <code>compute</code> 欄位，但它對<strong>全部 8469 個 <code>state='base'</code> 的欄位都是 NULL</strong>，因為它只記錄客製欄位的運算式。原生欄位的 compute 方法寫在 Python 裡，不進這張表。</p>
+          <p>所以在 Fields 清單上，可匯的 <code>user_id</code> 和不可匯的 <code>commercial_partner_id</code> 看起來一模一樣：都是 <code>store=true</code>、<code>required=false</code> 的 many2one。要分辨只能讀原始碼，或用匯入介面的欄位下拉選單反查，它只列出實際可寫的欄位。</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>主檔現況：哪些要自己建</summary>
+      <div class="in">
+        <table>
+          <thead><tr><th>主檔</th><th class="n">現有</th><th>導入前要做什麼</th></tr></thead>
+          <tbody>
+            <tr><td><code>res.country</code></td><td class="n">251</td><td>內建，直接對應</td></tr>
+            <tr><td><code>res.country.state</code></td><td class="n">2131</td><td>內建。台灣 22 筆</td></tr>
+            <tr><td><code>res.city</code></td><td class="n">371</td><td>視需要補，或只用純文字 <code>city</code></td></tr>
+            <tr><td><code>res.partner.industry</code></td><td class="n">21</td><td>內建，不夠再加</td></tr>
+            <tr><td><code>res.partner.category</code></td><td class="n">7</td><td>標籤要自己規劃，支援階層</td></tr>
+            <tr><td><code>account.payment.term</code></td><td class="n">11</td><td>付款條件先確認</td></tr>
+            <tr><td><code>res.users</code></td><td class="n">6</td><td>業務員要先是使用者</td></tr>
+            <tr><td><code>res.partner.bank</code></td><td class="n">4</td><td>必須在 partner 之後</td></tr>
+          </tbody>
+        </table>
+        <div class="fact w">
+          <h5>一個台灣導入會遇到的怪欄位</h5>
+          <p><code>res.partner.bank</code> 有一個 <code>required=true</code> 的 <code>l10n_us_bank_account_type</code>（選項 <code>checking</code> / <code>savings</code>），來自 <code>l10n_us</code> 模組。它有預設值 <code>checking</code> 所以不會擋住匯入，但你的台灣銀行帳號都會被標記成美國支票帳戶。這是這套環境同時裝了 <code>l10n_us</code> 與 <code>l10n_tw</code> 的副作用。</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>聯絡人的匯入順序</summary>
+      <div class="in">
+        <div class="fact">
+          <p>下面的順序是<strong>從外鍵依賴推出來的建議</strong>，不是 Odoo 官方文件的規定。依賴關係本身（誰指向誰、哪些必填）是圖上的實查結果。</p>
+        </div>
+        <ol class="steps">
+          <li><strong>先確認不用建的</strong>：國家、州省已內建。台灣 22 個縣市在 <code>res.country.state</code>，先查名稱寫法跟你的來源資料對不對得上。</li>
+          <li><strong>建分類主檔</strong>：<code>res.partner.category</code>、必要時補 <code>res.partner.industry</code>。標籤有 <code>parent_id</code>，可以先設計階層。</li>
+          <li><strong>建人員</strong>：業務員必須先存在於 <code>res.users</code>，否則 <code>user_id</code> 無處可指。</li>
+          <li><strong>建會計主檔</strong>：付款條件 <code>account.payment.term</code>。科目已隨 <code>l10n_tw</code> 建好。</li>
+          <li><strong>匯公司型聯絡人</strong>：<code>is_company=true</code>、<code>type='contact'</code>、<code>parent_id</code> 留空。這批必須有 <code>name</code>。</li>
+          <li><strong>匯個人與子聯絡人</strong>：<code>parent_id</code> 指向上一步的公司，<code>type='contact'</code>，一樣必須有 <code>name</code>。</li>
+          <li><strong>匯地址型記錄</strong>：<code>type='invoice'</code> 或 <code>'delivery'</code>，<code>parent_id</code> 指向公司。這批可以沒有 <code>name</code>。</li>
+          <li><strong>匯銀行帳號</strong>：<code>res.partner.bank</code>，<code>partner_id</code> 必填，一定在聯絡人之後。</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>商品主檔的匯入順序</summary>
+      <div class="in">
+        <div class="fact">
+          <p>同樣是<strong>從外鍵依賴推出來的建議</strong>，不是官方規定。依賴關係本身是圖上的實查結果。這一段假設聯絡人已經匯完，因為供應商價目需要 <code>res.partner</code> 先存在。</p>
+        </div>
+        <ol class="steps">
+          <li><strong>分類樹</strong>：<code>product.category</code>，只有 <code>name</code> 必填。有 <code>parent_id</code>，父分類要先建。注意它是 <code>cascade</code>，之後刪父分類會連子分類一起消失。</li>
+          <li><strong>計量單位</strong>：<code>uom.uom</code>，必填 <code>name</code> 與 <code>relative_factor</code>。19 是階層結構，<code>relative_uom_id</code> 指向的參考單位要先存在。內建已有 30 筆。</li>
+          <li><strong>屬性字典</strong>：先 <code>product.attribute</code>（必填 <code>name</code>、<code>create_variant</code>、<code>display_type</code>），再 <code>product.attribute.value</code>（必填 <code>name</code>、<code>attribute_id</code>）。這兩層是全域共用的。</li>
+          <li><strong>商品本體</strong>：<code>product.template</code>，必填 <code>name</code>、<code>uom_id</code>、<code>type</code>、<code>tracking</code>、<code>service_tracking</code>。所有商品內容都匯在這一層。</li>
+          <li><strong>商品的屬性設定</strong>：<code>...attribute.line</code> 與 <code>...attribute.value</code>。實務上很少直接匯：在 UI 上替商品掛屬性時 Odoo 會自己建，<strong>變體也在這一步自動產生</strong>，不需要你匯 <code>product.product</code>。</li>
+          <li><strong>供應商價目</strong>：<code>product.supplierinfo</code>，六個必填欄位，需要 <code>res.partner</code> 與 <code>product.template</code> 都已存在。</li>
+          <li><strong>條碼</strong>：<code>product.uom</code>，必填 <code>barcode</code>、<code>product_id</code>、<code>uom_id</code>。它指向變體，所以一定在變體產生之後。</li>
+        </ol>
+        <div class="fact w">
+          <p><strong>不要匯 <code>product.product</code>。</strong>它唯一的必填欄位是 <code>product_tmpl_id</code>，其他 15 個看得到的欄位都是 template 的投影。變體該由屬性設定自動生成，手動建立會與屬性組合對不上。</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>我沒能替你確認的部分</summary>
+      <div class="in">
+        <p>誠實標示，免得你當成已查證的事實：</p>
+        <ul class="tight">
+          <li><strong>完整的可匯入欄位清單。</strong>我試著用原始碼掃描區分 compute 與非 compute 欄位，但掃描結果混入了同檔案內其他 model 的欄位。圖上列出的欄位是逐一確認過的，但那不是全部 106 個。</li>
+          <li><strong>ORM 層的 constraint。</strong>除了那條 SQL CHECK，Odoo 還可能在 <code>@api.constrains</code> 裡加驗證（例如 <code>base_vat</code> 對統一編號的檢查碼）。那些不在資料庫裡，我沒有逐一清點。</li>
+          <li><strong>匯入時觸發的自動行為。</strong>例如 <code>commercial_partner_id</code> 怎麼算、<code>parent_id</code> 變動時子記錄的地址會不會被同步覆寫。要讀原始碼才能確定。</li>
+        </ul>
+        <p>前兩項要的話我可以查到確定為止。第三項建議直接在 sandbox 實測：建一筆、改一筆、看它變成什麼，比讀程式碼快。</p>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>自己重跑這些數字</summary>
+      <div class="in">
+        <pre>psql -U odoo -d odoo-dev-19 -c "
+-- 欄位規模
+SELECT count(*) FILTER (WHERE store) AS 有存的,
+       count(*) FILTER (WHERE store AND required) AS 必填的
+FROM ir_model_fields f JOIN ir_model m ON f.model_id=m.id
+WHERE m.model='res.partner';
+
+-- 表層約束（CHECK / UNIQUE 都在這）
+SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint
+WHERE conrelid='res_partner'::regclass;
+
+-- 現有聯絡人的型態分布
+SELECT type, count(*),
+       count(*) FILTER (WHERE parent_id IS NOT NULL) AS 有母記錄
+FROM res_partner GROUP BY type;"</pre>
+        <p>UI 上的等價路徑：debug mode 開啟後的 <code>設定 → 技術 → 資料庫結構 → 欄位</code>，篩選 Model 為 <code>res.partner</code>。但記得上面那節：表層 CHECK 和 compute 的可寫性，這個畫面都看不到。</p>
+      </div>
+    </details>
+
+  </div>
+</aside>
+
+<div id="hint">
+  <span><kbd>兩指</kbd> 平移</span>
+  <span><kbd>⌘</kbd>+滾輪 縮放</span>
+  <span><kbd>0</kbd> 適配</span>
+  <span><kbd>I</kbd> 說明</span>
+</div>
+
+<div id="boot"><p><i></i>正在繪製 24 個實體</p></div>
+<div id="err"><div id="errmsg"></div></div>
+
+<script type="module">
+const ENTITY = {
+  res_partner: { role: '導入的主角', rows: [['欄位總數','186'],['store=true','106'],['required','3'],['外鍵','23 個，散在 15 個實體'],['現有資料','45 筆，全 type=contact']],
+    flag: '26 筆有母記錄、13 筆是公司。name 的必填由表層 CHECK 決定，不是欄位屬性。', warn: true },
+  res_country: { role: 'Odoo 內建主檔', rows: [['現有筆數','251'],['必填','code、name']], flag: '不用自己建，匯入時直接對應。' },
+  res_country_state: { role: 'Odoo 內建主檔', rows: [['現有筆數','2131'],['台灣','22 筆'],['必填','code、name、country_id']], flag: '台灣的縣市已內建。先查名稱寫法跟你的來源資料對不對得上。' },
+  res_city: { role: '選用主檔', rows: [['現有筆數','371'],['必填','name、country_id'],['state_id','選填']], flag: '也可以不用它，res.partner 有純文字的 city 欄位。' },
+  res_partner_category: { role: '要自己規劃', rows: [['現有筆數','7'],['必填','name'],['階層','parent_id 自我參照']], flag: '標籤支援階層，導入前先把分類體系設計好。' },
+  partner_category_rel: { role: 'm2m 中介表', rows: [['主鍵','(category_id, partner_id)'],['兩欄','都 NOT NULL'],['on delete','cascade']], flag: '真實存在的資料庫表，沒有 id 欄位。' },
+  res_partner_industry: { role: 'Odoo 內建主檔', rows: [['現有筆數','21'],['必填','無']], flag: '內建 21 種產業，不夠再加。' },
+  res_users: { role: '要先建', rows: [['現有筆數','6'],['partner_id','required']], flag: '業務員必須先是使用者，否則 user_id 無處可指。每個使用者本身也是一筆 partner。' },
+  res_company: { role: '已存在', rows: [['partner_id','required']], flag: '公司本身也是一筆 partner。這套環境有 4 家公司。' },
+  res_partner_bank: { role: '最後才匯', rows: [['現有筆數','4'],['必填','acc_number、partner_id'],['還有','l10n_us_bank_account_type']],
+    flag: 'l10n_us_bank_account_type 是 required，預設 checking，所以台灣帳號會被標成美國支票帳戶。', warn: true },
+  account_payment_term: { role: '會計主檔', rows: [['現有筆數','11'],['必填','name、sequence']], flag: '客戶與供應商各有一個付款條件欄位。' },
+  account_account: { role: '已隨 l10n_tw 建立', rows: [['必填','name、account_type、company_ids']], flag: 'TW Company 有 136 個科目。應收與應付各對應一個欄位。' },
+
+  product_template: { role: '商品主檔的真身', rows: [['現有筆數','37'],['store 欄位','71'],['必填','name、uom_id、type、tracking、service_tracking']],
+    flag: '名稱、售價、分類、單位全都存在這一層。product.product 上的同名欄位是 related，資料庫裡沒有。' },
+  product_product: { role: '實際變體', rows: [['現有筆數','47'],['store 欄位','37'],['必填','只有 product_tmpl_id']],
+    flag: '有 15 個欄位是 related 到 template，包含 name 與 list_price。匯入時填在這一層沒有作用。', warn: true },
+  product_category: { role: '分類樹', rows: [['現有筆數','7'],['必填','name'],['階層','parent_id 自我參照']],
+    flag: 'parent_id 的 on_delete 是 cascade，刪掉父分類會連子分類一起刪。', warn: true },
+  uom_uom: { role: '計量單位（19 已改版）', rows: [['現有筆數','30'],['必填','name、relative_factor'],['階層','relative_uom_id 自我參照']],
+    flag: 'Odoo 19 移除了 uom.category，改成單位之間直接相對參照。依舊版 category 設計的匯入方式在這裡不適用。', warn: true },
+  product_uom: { role: '商品 × 單位 × 條碼', rows: [['必填','barcode、product_id、uom_id'],['on delete','兩個 FK 都 cascade']],
+    flag: '19 的新表，取代舊版的 product.packaging。讓同一商品的不同包裝單位各有條碼。' },
+  product_supplierinfo: { role: '供應商價目', rows: [['現有筆數','27'],['必填','6 個欄位'],['掛在','product_tmpl_id 而非變體']],
+    flag: 'partner_id 的 on_delete 是 cascade：刪掉供應商，它的價目記錄一併消失。', warn: true },
+  product_attribute: { role: '屬性定義', rows: [['現有筆數','11'],['必填','name、create_variant、display_type']],
+    flag: 'create_variant 決定這個屬性會不會實際產生變體記錄。' },
+  product_attribute_value: { role: '屬性值', rows: [['現有筆數','101'],['必填','name、attribute_id'],['on delete','cascade']],
+    flag: '全域共用，同一個值可以被多個商品引用。' },
+  ptal: { role: '商品有哪些屬性', rows: [['必填','product_tmpl_id、attribute_id'],['on delete','對 template 是 cascade']],
+    flag: 'attribute_id 是 restrict：屬性只要還被商品引用就刪不掉。' },
+  ptav: { role: '商品的某個屬性值', rows: [['必填','attribute_line_id、product_attribute_value_id'],['on delete','兩者皆 cascade']],
+    flag: '變體由這一層的組合定義，加價也記在這一層。' },
+  variant_combination: { role: '變體的定義（中介表）', rows: [['主鍵','兩欄複合'],['對 product','cascade'],['對 ptav','restrict']],
+    flag: '刪變體會清掉組合記錄，但屬性值只要還在組合裡就刪不掉。方向是不對稱的。', warn: true },
+  pav_ptal_rel: { role: '可選值清單（中介表）', rows: [['主鍵','兩欄複合'],['對 ptal','cascade'],['對 pav','restrict']],
+    flag: '決定「這個商品的顏色可以選哪幾個值」。' }
+};
+
+const stage = document.getElementById('stage');
+const world = document.getElementById('world');
+const tip   = document.getElementById('tip');
+const panel = document.getElementById('panel');
+const toggle= document.getElementById('toggle');
+const zlabel= document.getElementById('zoomlabel');
+const hint  = document.getElementById('hint');
+
+const MIN = .05, MAX = 4;
+let scale = 1, tx = 0, ty = 0, box = null;
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const vw = () => innerWidth || document.documentElement.clientWidth || screen.width || 1280;
+const vh = () => innerHeight || document.documentElement.clientHeight || screen.height || 800;
+function paint() {
+  world.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+  zlabel.textContent = Math.round(scale * 100) + '%';
+}
+function ease(on) { world.classList.toggle('eased', on); }
+function zoomAt(cx, cy, factor) {
+  const ns = clamp(scale * factor, MIN, MAX), k = ns / scale;
+  tx = cx - k * (cx - tx); ty = cy - k * (cy - ty); scale = ns; paint();
+}
+function zoomCenter(factor) {
+  ease(true); zoomAt(vw() / 2, vh() / 2, factor);
+  setTimeout(() => ease(false), 280);
+}
+function fit(animate = true) {
+  if (!box || !box.w || !box.h) return;
+  const padX = 96, padTop = 104, padBottom = 72;
+  const availW = Math.max(240, vw() - padX * 2);
+  const availH = Math.max(240, vh() - padTop - padBottom);
+  scale = clamp(Math.min(availW / box.w, availH / box.h), MIN, MAX);
+  tx = padX + (availW - box.w * scale) / 2 - box.x * scale;
+  ty = padTop + (availH - box.h * scale) / 2 - box.y * scale;
+  ease(animate); paint();
+  if (animate) setTimeout(() => ease(false), 280);
+}
+function actual() {
+  if (!box) return;
+  ease(true); scale = 1;
+  tx = (vw() - box.w) / 2 - box.x;
+  ty = (vh() - box.h) / 2 - box.y;
+  paint(); setTimeout(() => ease(false), 280);
+}
+
+stage.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * .0125));
+  else { tx -= e.deltaX; ty -= e.deltaY; paint(); }
+  fadeHint();
+}, { passive: false });
+
+let dragging = false, lastX = 0, lastY = 0, moved = 0;
+stage.addEventListener('pointerdown', e => {
+  if (e.button !== 0 && e.button !== 1) return;
+  dragging = true; moved = 0; lastX = e.clientX; lastY = e.clientY;
+  stage.classList.add('dragging'); stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - lastX, dy = e.clientY - lastY;
+  moved += Math.abs(dx) + Math.abs(dy);
+  tx += dx; ty += dy; lastX = e.clientX; lastY = e.clientY; paint();
+  if (moved > 6) hideTip();
+});
+function endDrag(e) {
+  if (!dragging) return;
+  dragging = false; stage.classList.remove('dragging');
+  try { stage.releasePointerCapture(e.pointerId); } catch {}
+  fadeHint();
+}
+stage.addEventListener('pointerup', endDrag);
+stage.addEventListener('pointercancel', endDrag);
+stage.addEventListener('dblclick', e => { ease(true); zoomAt(e.clientX, e.clientY, 1.6); setTimeout(() => ease(false), 280); });
+
+let hintTimer = null;
+function fadeHint() {
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => hint.classList.add('fade'), 2600);
+}
+
+function showTip(node, key, e) {
+  const d = ENTITY[key]; if (!d) return;
+  const label = node.querySelector('.nodeLabel')?.textContent?.trim() || key;
+  tip.innerHTML =
+    `<h4>${label}</h4><div class="role">${d.role}</div>` +
+    `<dl>${d.rows.map(([k, v]) => `<dt>${k}</dt><dd><b>${v}</b></dd>`).join('')}</dl>` +
+    (d.flag ? `<div class="flag${d.warn ? ' w' : ''}">${d.flag}</div>` : '');
+  tip.classList.add('show'); tip.setAttribute('aria-hidden', 'false');
+  placeTip(e);
+}
+function placeTip(e) {
+  const r = tip.getBoundingClientRect(), gap = 16;
+  let x = e.clientX + gap, y = e.clientY + gap;
+  if (x + r.width > vw() - 12) x = e.clientX - r.width - gap;
+  if (y + r.height > vh() - 12) y = e.clientY - r.height - gap;
+  tip.style.left = Math.max(12, x) + 'px';
+  tip.style.top = Math.max(12, y) + 'px';
+}
+function hideTip() {
+  tip.classList.remove('show'); tip.setAttribute('aria-hidden', 'true');
+  world.classList.remove('dim');
+  world.querySelectorAll('g.node.hot').forEach(n => n.classList.remove('hot'));
+}
+
+const GROUPS = [
+  { label: '聯絡人', keys: ['res_partner','res_country','res_country_state','res_city','res_partner_category','partner_category_rel','res_partner_industry','res_users','res_company','res_partner_bank','account_payment_term','account_account'] },
+  { label: '商品主檔', keys: ['product_template','product_product','product_category','uom_uom','product_uom','product_supplierinfo','product_attribute','product_attribute_value','ptal','ptav','variant_combination','pav_ptal_rel'] }
+];
+const nodeMap = {};
+
+// 飛到指定實體：依它的大小挑一個既讀得到、又裝得下的縮放
+function focusEntity(key, btn) {
+  const node = nodeMap[key];
+  if (!node) return;
+  // 用 SVG 內部座標，不要用 getBoundingClientRect：後者在 transform 過渡期間
+  // 回傳的是動畫當下的位置，連續點索引時會與 tx/scale 不同步而算錯
+  const bb = node.getBBox();
+  const m = node.transform.baseVal.consolidate()?.matrix;
+  const wx = (m ? m.e : 0) + bb.x + bb.width / 2;
+  const wy = (m ? m.f : 0) + bb.y + bb.height / 2;
+  const nodeW = bb.width, nodeH = bb.height;
+
+  // 窄螢幕的面板是全寬的，蓋住整張圖；這時點索引等於「我要看圖」，就讓它收起
+  const pw = panel.classList.contains('open') ? panel.getBoundingClientRect().width : 0;
+  if (pw >= vw() - 40) { setPanel(false); }
+  const panelW = pw >= vw() - 40 ? 0 : pw;
+  const visW = Math.max(240, vw() - panelW);
+  // 縮放先保證讀得到；框太高就別硬塞，對齊頂部讓使用者往下捲
+  const READABLE = .75;
+  const contain = Math.min((visW - 120) / nodeW, (vh() - 220) / nodeH, 1);
+  scale = clamp(Math.max(contain, READABLE), MIN, MAX);
+  tx = visW / 2 - wx * scale;
+  ty = nodeH * scale > vh() - 200
+     ? 116 - (wy - nodeH / 2) * scale      // 對齊頂部
+     : vh() / 2 - wy * scale;              // 垂直置中
+  ease(true); paint();
+  setTimeout(() => ease(false), 320);
+
+  world.querySelectorAll('g.node.hot').forEach(n => n.classList.remove('hot'));
+  node.classList.add('hot');
+  setTimeout(() => node.classList.remove('hot'), 2200);
+  document.querySelectorAll('.idx button.here').forEach(b => b.classList.remove('here'));
+  if (btn) btn.classList.add('here');
+}
+
+function buildIndex() {
+  const idx = document.getElementById('idx');
+  idx.textContent = '';
+  GROUPS.forEach(g => {
+    const avail = g.keys.filter(k => nodeMap[k]);
+    if (!avail.length) return;
+    const h = document.createElement('h6');
+    h.textContent = `${g.label}（${avail.length}）`;
+    idx.appendChild(h);
+    avail.forEach(k => {
+      const b = document.createElement('button');
+      const nameEl = document.createElement('b');
+      nameEl.textContent = nodeMap[k].querySelector('.nodeLabel')?.textContent?.trim() || k;
+      const roleEl = document.createElement('i');
+      roleEl.textContent = ENTITY[k]?.role || '';
+      b.append(nameEl, roleEl);
+      b.addEventListener('click', () => focusEntity(k, b));
+      idx.appendChild(b);
+    });
+  });
+}
+
+function wire(svg) {
+  svg.querySelectorAll('g.node').forEach(node => {
+    const m = (node.id || '').match(/entity-(.+?)-\d+$/);
+    if (!m) return;
+    const key = m[1];
+    nodeMap[key] = node;
+    node.addEventListener('pointerenter', e => {
+      if (dragging) return;
+      node.classList.add('hot'); world.classList.add('dim'); showTip(node, key, e);
+    });
+    node.addEventListener('pointermove', e => { if (!dragging && tip.classList.contains('show')) placeTip(e); });
+    node.addEventListener('pointerleave', hideTip);
+  });
+}
+
+addEventListener('keydown', e => {
+  if (e.target.matches('input, textarea')) return;
+  const k = e.key.toLowerCase();
+  if (k === '0') { e.preventDefault(); fit(); }
+  else if (k === '1') { e.preventDefault(); actual(); }
+  else if (k === '=' || k === '+') { e.preventDefault(); zoomCenter(1.25); }
+  else if (k === '-' || k === '_') { e.preventDefault(); zoomCenter(1 / 1.25); }
+  else if (k === 'i') { e.preventDefault(); setPanel(!panel.classList.contains('open')); }
+  else if (e.key === 'Escape') { if (panel.classList.contains('open')) setPanel(false); }
+});
+
+function setPanel(open) {
+  panel.classList.toggle('open', open);
+  toggle.setAttribute('aria-pressed', String(open));
+}
+toggle.onclick = () => setPanel(!panel.classList.contains('open'));
+document.getElementById('close').onclick = () => { setPanel(false); toggle.focus(); };
+document.getElementById('zin').onclick  = () => zoomCenter(1.25);
+document.getElementById('zout').onclick = () => zoomCenter(1 / 1.25);
+document.getElementById('fit').onclick  = () => fit();
+document.getElementById('one').onclick  = () => actual();
+
+let rt = null;
+addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => fit(false), 160); });
+
+const boot = document.getElementById('boot');
+try {
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  // 內嵌版直接用全域 mermaid；沒有內嵌時才回退到 CDN
+  const mermaid = window.mermaid
+    || (await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs')).default;
+  mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'neutral',
+    er: { useMaxWidth: false, entityPadding: 14, minEntityWidth: 140 } });
+
+  // 背景分頁不會觸發 rAF，也可能拿不到 fonts.ready，一律用逾時兜底
+  const race = (p, ms) => Promise.race([p, new Promise(r => setTimeout(r, ms))]);
+  const nextFrames = () => race(
+    new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))), 150);
+
+  // mermaid 靠實際文字寬度決定實體框大小，字型未就緒會量出偏小的框
+  if (document.fonts?.ready) await race(document.fonts.ready, 2000);
+  await mermaid.run({ querySelector: '.mermaid' });
+  await nextFrames();  // 讓佈局 settle 再量 getBBox
+
+  const svg = world.querySelector('svg');
+  svg.style.maxWidth = 'none';
+  // useMaxWidth:false 時 mermaid 已把實際尺寸寫進 viewBox，比自行推算 getBBox 可靠
+  const vb = svg.viewBox?.baseVal;
+  const rect = svg.getBoundingClientRect();
+  box = { x: 0, y: 0,
+          w: vb?.width || rect.width || svg.width?.baseVal?.value || 0,
+          h: vb?.height || rect.height || svg.height?.baseVal?.value || 0 };
+  wire(svg);
+  buildIndex();
+  fit(false);
+  fadeHint();
+
+  // viewport 尚未就緒時（背景分頁、載入競速）第一次量到真實尺寸再適配一次
+  let settled = false;
+  new ResizeObserver(entries => {
+    const r = entries[0].contentRect;
+    if (!settled && r.width > 0 && r.height > 0) { settled = true; fit(false); }
+  }).observe(stage);
+
+  boot.classList.add('gone');
+  setTimeout(() => boot.remove(), 300);
+} catch (err) {
+  boot.remove();
+  document.getElementById('err').style.display = 'grid';
+  document.getElementById('errmsg').textContent = window.mermaid
+    ? '內嵌的 mermaid 執行失敗，圖無法繪製。錯誤詳情在瀏覽器主控台。'
+    : 'Mermaid 沒有載入成功。這一份需要網路連線，離線版是 global-view.offline.html。';
+  console.error(err);
+}
+</script>
+
+</body>
+</html>

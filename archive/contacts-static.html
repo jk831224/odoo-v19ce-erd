@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Odoo 19 聯絡人導入作戰圖 — res.partner</title>
+<style>
+:root {
+  --ink: #1a1a18; --ink-soft: #55534d; --ink-faint: #8a8780;
+  --paper: #fffdf9; --paper-alt: #f5f2ea; --rule: #ddd8cc;
+  --accent: #7a2e2e; --accent-bg: #f7ecec;
+  --warn: #8a5a12; --warn-bg: #faf1de;
+  --ok: #2c5a3e; --ok-bg: #eaf2ec;
+  --sans: "PingFang TC", "Helvetica Neue", system-ui, sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e6e3dc; --ink-soft: #b0aca3; --ink-faint: #7d7a73;
+    --paper: #14140f; --paper-alt: #1e1e18; --rule: #33322b;
+    --accent: #d98b8b; --accent-bg: #2a1c1c;
+    --warn: #d9ad63; --warn-bg: #2a2115;
+    --ok: #8fc9a5; --ok-bg: #182319;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 2.5rem 2rem 6rem; background: var(--paper); color: var(--ink);
+  font-family: var(--sans); font-size: 16px; line-height: 1.7; }
+header, main, #toolbar { max-width: 54rem; margin-left: auto; margin-right: auto; }
+h1 { font-size: 1.9rem; font-weight: 500; margin: 0 0 .3rem; }
+.sub { color: var(--ink-soft); margin: 0 0 1.2rem; }
+.provenance { font-family: var(--mono); font-size: .78rem; color: var(--ink-faint);
+  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: .7rem 0; margin: 0; }
+h2 { font-size: 1.25rem; font-weight: 500; margin: 2.8rem 0 .8rem; padding-top: 1.2rem; border-top: 1px solid var(--rule); }
+h3 { font-size: 1.05rem; font-weight: 500; margin: 1.8rem 0 .5rem; color: var(--ink-soft); }
+p { margin: .9rem 0; }
+code { font-family: var(--mono); font-size: .87em; background: var(--paper-alt); padding: .1em .35em; border-radius: 3px; }
+ul, ol { padding-left: 1.3rem; }
+li { margin: .45rem 0; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: .89rem; }
+th { text-align: left; font-size: .74rem; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--ink-faint); border-bottom: 1.5px solid var(--ink-soft); padding: .45rem .6rem; }
+td { padding: .5rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); }
+#toolbar { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; padding-bottom: .7rem; }
+#toolbar button { font: inherit; font-size: .85rem; padding: .35rem .8rem; border: 1.5px solid var(--rule);
+  border-radius: 5px; background: var(--paper-alt); color: var(--ink); cursor: pointer; }
+#zoomval { font-family: var(--mono); font-size: .8rem; color: var(--ink-faint); }
+#viewport { border: 1.5px solid var(--rule); border-radius: 8px; background: var(--paper-alt);
+  overflow: auto; max-height: 80vh; padding: 1.5rem; margin: 0 auto 1rem; max-width: 54rem; }
+#canvas { transform-origin: 0 0; }
+#fallback { display: none; padding: 1.2rem; border-left: 3px solid var(--accent); background: var(--accent-bg);
+  font-size: .9rem; border-radius: 4px; max-width: 54rem; margin: 0 auto; }
+.box { border-left: 3px solid var(--ink-faint); background: var(--paper-alt); padding: .9rem 1.1rem; margin: 1.3rem 0; font-size: .94rem; }
+.box.warn { border-color: var(--warn); background: var(--warn-bg); }
+.box.ok { border-color: var(--ok); background: var(--ok-bg); }
+.box.stop { border-color: var(--accent); background: var(--accent-bg); }
+.box .lbl { display: block; font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 500; margin-bottom: .4rem; color: var(--ink-faint); }
+.box.warn .lbl { color: var(--warn); } .box.ok .lbl { color: var(--ok); } .box.stop .lbl { color: var(--accent); }
+.box > :last-child { margin-bottom: 0; }
+pre { background: var(--paper-alt); padding: 1rem 1.2rem; overflow-x: auto; font-size: .82rem;
+  border-left: 3px solid var(--rule); font-family: var(--mono); line-height: 1.6; }
+.legend { display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: .85rem; color: var(--ink-soft); margin: 1rem auto; max-width: 54rem; }
+@media print { body { padding: 0; } #toolbar { display: none; } #viewport { max-height: none; overflow: visible; border: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Odoo 19 聯絡人導入作戰圖</h1>
+  <p class="sub">以 res.partner 為中心。回答「要先建什麼、哪些欄位能匯、哪裡會擋你」。</p>
+  <p class="provenance">
+    資料來源：odoo-dev-19（74 個模組已裝，含 l10n_tw、base_vat）· ir_model_fields、PostgreSQL 系統表、Odoo 原始碼<br>
+    查詢日期 2026-08-13 · 每一項數字都可用文末的指令重跑
+  </p>
+</header>
+
+<main>
+<h2>現況</h2>
+<table>
+<thead><tr><th>項目</th><th class="num">數量</th><th>說明</th></tr></thead>
+<tbody>
+<tr><td><code>res.partner</code> 欄位總數</td><td class="num">186</td><td>包含未儲存的計算欄位</td></tr>
+<tr><td>其中 <code>store=true</code></td><td class="num">106</td><td>資料庫真的有這一欄</td></tr>
+<tr><td>其中 <code>required=true</code></td><td class="num">3</td><td>全是 selection，且都有預設值</td></tr>
+<tr><td>指向其他 model 的外鍵</td><td class="num">23</td><td>散佈在 15 個不同實體</td></tr>
+<tr><td>目前資料庫裡的聯絡人</td><td class="num">45</td><td>全部 <code>type='contact'</code>；26 筆有母記錄；13 筆是公司</td></tr>
+</tbody>
+</table>
+</main>
+
+<div id="toolbar">
+  <button id="zoomout">縮小</button><button id="zoomin">放大</button><button id="zoomreset">還原</button>
+  <span id="zoomval">100%</span>
+</div>
+
+<div id="viewport"><div id="canvas">
+<pre class="mermaid">
+erDiagram
+    res_partner["res.partner"] {
+        integer id PK
+        char name "CHECK 條件式必填"
+        selection type "contact invoice delivery other"
+        boolean is_company
+        many2one parent_id FK "自身 set-null"
+        integer customer_rank "整數非布林"
+        integer supplier_rank "整數非布林"
+        char vat "統一編號"
+        char email
+        char phone
+        char street
+        char zip
+        char city "純文字"
+        many2one country_id FK "選填"
+        many2one state_id FK "選填"
+        many2one city_id FK "選填 需 base_address_city"
+        many2one industry_id FK "選填"
+        many2one user_id FK "compute 可覆寫"
+        many2one buyer_id FK "選填"
+        many2one company_id FK "選填"
+        many2one property_payment_term_id FK "客戶付款條件"
+        many2one property_supplier_payment_term_id FK "供應商付款條件"
+        many2one property_account_receivable_id FK "應收科目"
+        many2one property_account_payable_id FK "應付科目"
+        selection autopost_bills "required 有預設"
+        selection group_on "required 有預設"
+        selection group_rfq "required 有預設"
+    }
+
+    res_country["res.country"] {
+        integer id PK
+        char code "required"
+        char name "required"
+    }
+
+    res_country_state["res.country.state"] {
+        integer id PK
+        char code "required"
+        char name "required"
+        many2one country_id FK "required"
+    }
+
+    res_city["res.city"] {
+        integer id PK
+        char name "required"
+        many2one country_id FK "required"
+        many2one state_id FK "選填"
+    }
+
+    res_partner_category["res.partner.category"] {
+        integer id PK
+        char name "required"
+        many2one parent_id FK "自身 標籤有階層"
+    }
+
+    partner_category_rel["res_partner_res_partner_category_rel"] {
+        integer partner_id PK,FK "NOT NULL"
+        integer category_id PK,FK "NOT NULL"
+    }
+
+    res_partner_industry["res.partner.industry"] {
+        integer id PK
+        char name "非必填"
+    }
+
+    res_users["res.users"] {
+        integer id PK
+        many2one partner_id FK "required 使用者也是 partner"
+    }
+
+    res_company["res.company"] {
+        integer id PK
+        many2one partner_id FK "required 公司也是 partner"
+    }
+
+    res_partner_bank["res.partner.bank"] {
+        integer id PK
+        char acc_number "required"
+        many2one partner_id FK "required"
+        selection l10n_us_bank_account_type "required 有預設 checking"
+    }
+
+    account_payment_term["account.payment.term"] {
+        integer id PK
+        char name "required"
+        integer sequence "required"
+    }
+
+    account_account["account.account"] {
+        integer id PK
+        char name "required"
+        selection account_type "required"
+    }
+
+    res_country ||--o{ res_country_state : "country_id"
+    res_country ||--o{ res_city : "country_id"
+    res_country_state |o--o{ res_city : "state_id"
+    res_country |o--o{ res_partner : "country_id"
+    res_country_state |o--o{ res_partner : "state_id"
+    res_city |o--o{ res_partner : "city_id"
+
+    res_partner_industry |o--o{ res_partner : "industry_id"
+    res_users |o--o{ res_partner : "user_id"
+    res_users |o--o{ res_partner : "buyer_id"
+    res_company |o--o{ res_partner : "company_id"
+    res_partner |o--o{ res_partner : "parent_id / commercial_partner_id"
+
+    res_partner ||--o{ partner_category_rel : "partner_id"
+    res_partner_category ||--o{ partner_category_rel : "category_id"
+    res_partner_category |o--o{ res_partner_category : "parent_id"
+
+    res_partner ||--o{ res_partner_bank : "partner_id"
+    res_partner ||--o{ res_users : "partner_id"
+    res_partner ||--o{ res_company : "partner_id"
+
+    account_payment_term |o--o{ res_partner : "property_payment_term_id"
+    account_payment_term |o--o{ res_partner : "property_supplier_payment_term_id"
+    account_account |o--o{ res_partner : "property_account_receivable_id"
+    account_account |o--o{ res_partner : "property_account_payable_id"
+</pre>
+</div></div>
+
+<div id="fallback">Mermaid 沒有載入成功。這份 HTML 從 jsdelivr CDN 載入 mermaid 11，需要網路連線。要離線版告訴我。</div>
+
+<div class="legend">
+  <span><code>||--o{</code> 外鍵必填</span>
+  <span><code>|o--o{</code> 外鍵可為空</span>
+  <span><code>PK,FK</code> 中介表複合主鍵</span>
+</div>
+
+<main>
+
+<h2>三條會擋住你的硬約束</h2>
+
+<div class="box stop">
+<span class="lbl">約束一 · name 是條件式必填</span>
+<p>資料庫層有一條 CHECK 約束，名字叫 <code>res_partner_check_name</code>：</p>
+<pre>((type)::text = 'contact'::text AND name IS NOT NULL)
+OR ((type)::text &lt;&gt; 'contact'::text)</pre>
+<p>只有 <code>type='contact'</code> 的記錄強制要有名字。地址型記錄（<code>invoice</code>、<code>delivery</code>）可以沒有 <code>name</code>。這就是為什麼 <code>name</code> 在欄位定義上不是 <code>required</code>——約束在表層而非欄位層，所以在 debug mode 的 Fields 清單裡看不到它。</p>
+</div>
+
+<div class="box stop">
+<span class="lbl">約束二 · 沒有任何 UNIQUE 約束</span>
+<p><code>res_partner</code> 表除了主鍵之外沒有唯一鍵。資料庫層允許你匯入兩筆完全相同的聯絡人，重複匯入不會被擋。<strong>去重必須在匯入前自己做</strong>，或依賴 Odoo 匯入介面的 External ID 對應。</p>
+</div>
+
+<div class="box stop">
+<span class="lbl">約束三 · DB 層 NOT NULL 只有四欄</span>
+<p><code>id</code>、<code>autopost_bills</code>、<code>group_on</code>、<code>group_rfq</code>。後三個都是 selection 且有預設值，匯入時不填也會自動帶入。換句話說，<strong>除了 name 那條 CHECK，資料庫幾乎不會攔你</strong>——資料品質完全靠匯入前把關。</p>
+</div>
+
+<h2>type 的四個值</h2>
+
+<table>
+<thead><tr><th>值</th><th>Odoo 標籤</th><th>sequence</th><th>name 必填</th></tr></thead>
+<tbody>
+<tr><td><code>contact</code></td><td>Contact</td><td class="num">0</td><td>是</td></tr>
+<tr><td><code>invoice</code></td><td>Invoice</td><td class="num">1</td><td>否</td></tr>
+<tr><td><code>delivery</code></td><td>Delivery</td><td class="num">2</td><td>否</td></tr>
+<tr><td><code>other</code></td><td>Other</td><td class="num">3</td><td>否</td></tr>
+</tbody>
+</table>
+
+<p>目前資料庫裡 45 筆聯絡人全部是 <code>contact</code>，一筆 <code>invoice</code> 或 <code>delivery</code> 型的都沒有。如果你的客戶有「帳單地址與收貨地址不同」的需求，那會是新的資料型態，值得先建一筆試打。</p>
+
+<h2>debug mode 看不出來的事：三種計算欄位</h2>
+
+<p>這一節是我在準備這份文件時實測發現的，對導入很關鍵。<code>store</code> 這個旗標<strong>不足以</strong>判斷一個欄位能不能匯入，實際有三種狀態：</p>
+
+<table>
+<thead><tr><th>狀態</th><th>能不能匯入</th><th>例子</th></tr></thead>
+<tbody>
+<tr><td><code>store=false</code></td><td>不能，資料庫根本沒這一欄</td><td><code>company_type</code>、<code>contact_address</code></td></tr>
+<tr><td><code>compute</code> + <code>store=true</code> + <code>readonly=False</code></td><td><strong>可以</strong>，不填會自動算，填了以你的為準</td><td><code>user_id</code>（業務員）</td></tr>
+<tr><td><code>compute</code> + <code>store=true</code></td><td>不能，匯了也會被重算覆蓋</td><td><code>commercial_partner_id</code>、<code>complete_name</code>、<code>commercial_company_name</code>、<code>partner_share</code></td></tr>
+</tbody>
+</table>
+
+<div class="box warn">
+<span class="lbl">為什麼 debug mode 幫不上這個忙</span>
+<p><code>ir_model_fields</code> 有一個 <code>compute</code> 欄位，但它對<strong>全部 8469 個 <code>state='base'</code> 的欄位都是 NULL</strong>——它只記錄客製欄位的 compute 運算式。原生欄位的 compute 方法寫在 Python 裡，不進這張表。</p>
+<p>所以在 debug mode 的 Fields 清單上，<code>user_id</code>（可匯）和 <code>commercial_partner_id</code>（不可匯）看起來一模一樣：兩個都是 <code>store=true</code>、<code>required=false</code> 的 many2one。要分辨只能讀原始碼，或用 Odoo 匯入介面的欄位下拉選單反查——匯入介面只列出實際可寫的欄位。</p>
+</div>
+
+<h2>主檔現況：哪些要自己建</h2>
+
+<table>
+<thead><tr><th>主檔</th><th class="num">現有筆數</th><th>必填欄位</th><th>導入前要做什麼</th></tr></thead>
+<tbody>
+<tr><td><code>res.country</code></td><td class="num">251</td><td><code>code</code>、<code>name</code></td><td>Odoo 內建，直接對應</td></tr>
+<tr><td><code>res.country.state</code></td><td class="num">2131</td><td><code>code</code>、<code>name</code>、<code>country_id</code></td><td>內建。台灣有 22 筆</td></tr>
+<tr><td><code>res.city</code></td><td class="num">371</td><td><code>name</code>、<code>country_id</code></td><td>視需要補；也可以只用純文字 <code>city</code> 欄位</td></tr>
+<tr><td><code>res.partner.industry</code></td><td class="num">21</td><td>無</td><td>內建，不夠再加</td></tr>
+<tr><td><code>res.partner.category</code></td><td class="num">7</td><td><code>name</code></td><td>標籤通常要自己規劃，且支援階層</td></tr>
+<tr><td><code>account.payment.term</code></td><td class="num">11</td><td><code>name</code>、<code>sequence</code></td><td>付款條件先確認再匯</td></tr>
+<tr><td><code>res.users</code></td><td class="num">6</td><td><code>partner_id</code></td><td>業務員要先是使用者</td></tr>
+<tr><td><code>account.account</code></td><td class="num">—</td><td><code>name</code>、<code>account_type</code>、<code>company_ids</code></td><td>科目表已隨 l10n_tw 建立</td></tr>
+<tr><td><code>res.partner.bank</code></td><td class="num">4</td><td><code>acc_number</code>、<code>partner_id</code></td><td>必須在 partner 之後</td></tr>
+</tbody>
+</table>
+
+<div class="box warn">
+<span class="lbl">一個台灣導入會遇到的怪欄位</span>
+<p><code>res.partner.bank</code> 有一個 <code>required=true</code> 的欄位叫 <code>l10n_us_bank_account_type</code>（Bank Account Type，選項 <code>checking</code> / <code>savings</code>），來自 <code>l10n_us</code> 模組。它有預設值 <code>checking</code>，所以不會擋住匯入，但你的台灣銀行帳號都會被標記成美國的支票帳戶。這是這套環境同時裝了 <code>l10n_us</code> 與 <code>l10n_tw</code> 的副作用。</p>
+</div>
+
+<h2>建議的匯入順序</h2>
+
+<div class="box">
+<span class="lbl">注意</span>
+<p>下面的順序是我<strong>從外鍵依賴關係推出來的建議</strong>，不是 Odoo 官方文件的規定。依賴關係本身（誰指向誰、哪些必填）是上面圖表的實查結果。</p>
+</div>
+
+<ol>
+<li><strong>先確認不用建的</strong>：國家、州省已內建。台灣的 22 個縣市在 <code>res.country.state</code> 裡，先查名稱寫法與你的來源資料是否對得上。</li>
+<li><strong>建分類主檔</strong>：<code>res.partner.category</code>（標籤）、必要時補 <code>res.partner.industry</code>。標籤有 <code>parent_id</code>，可以先設計階層。</li>
+<li><strong>建人員</strong>：業務員必須先存在於 <code>res.users</code>，否則 <code>user_id</code> 無處可指。</li>
+<li><strong>建會計主檔</strong>：付款條件 <code>account.payment.term</code>。科目已隨 <code>l10n_tw</code> 建好。</li>
+<li><strong>匯公司型聯絡人</strong>：<code>is_company=true</code>、<code>type='contact'</code>、<code>parent_id</code> 留空。這一批必須有 <code>name</code>。</li>
+<li><strong>匯個人與子聯絡人</strong>：<code>parent_id</code> 指向上一步的公司。<code>type='contact'</code>，一樣必須有 <code>name</code>。</li>
+<li><strong>匯地址型記錄</strong>（若有需要）：<code>type='invoice'</code> 或 <code>'delivery'</code>，<code>parent_id</code> 指向公司。這批可以沒有 <code>name</code>。</li>
+<li><strong>匯銀行帳號</strong>：<code>res.partner.bank</code>，<code>partner_id</code> 必填，所以一定在聯絡人之後。</li>
+</ol>
+
+<h2>我沒能替你確認的部分</h2>
+
+<div class="box">
+<p>誠實標示，免得你當成已查證的事實：</p>
+<ul>
+<li><strong>完整的可匯入欄位清單。</strong>我試著用原始碼掃描區分 compute 與非 compute 欄位，但掃描結果混入了同檔案內其他 model 的欄位，我不會拿一份可能有錯的清單給你當導入依據。上面圖上列出的欄位是逐一確認過的，但那不是全部 106 個。</li>
+<li><strong>ORM 層的 constraint。</strong>除了那條 SQL CHECK 之外，Odoo 還可能在 Python 的 <code>@api.constrains</code> 裡加驗證（例如 <code>base_vat</code> 對統一編號的檢查碼驗證）。那些不在資料庫裡，我沒有逐一清點。</li>
+<li><strong>匯入時會觸發的自動行為。</strong>例如建立 partner 時 <code>commercial_partner_id</code> 怎麼算、<code>parent_id</code> 變動時子記錄的地址欄位會不會被同步覆寫。這些是 <code>_compute</code> 與 <code>write</code> 的邏輯，要讀原始碼才能確定。</li>
+</ul>
+<p>前兩項如果你要，我可以繼續查到確定為止。第三項建議直接在這個 sandbox 上實測——建一筆、改一筆、看它變成什麼，比讀程式碼快。</p>
+</div>
+
+<h2>自己重跑這些數字</h2>
+
+<pre>psql -U odoo -d odoo-dev-19 -c "
+-- res.partner 的欄位規模
+SELECT count(*) FILTER (WHERE store) AS 有存的,
+       count(*) FILTER (WHERE store AND required) AS 必填的
+FROM ir_model_fields f JOIN ir_model m ON f.model_id=m.id
+WHERE m.model='res.partner';
+
+-- 表層約束（CHECK / UNIQUE 都在這）
+SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint
+WHERE conrelid='res_partner'::regclass;
+
+-- 現有聯絡人的型態分布
+SELECT type, count(*), count(*) FILTER (WHERE parent_id IS NOT NULL) AS 有母記錄
+FROM res_partner GROUP BY type;"</pre>
+
+<p>UI 上的等價路徑：debug mode 開啟後的 <code>設定 → 技術 → 資料庫結構 → 欄位</code>，篩選 Model 為 <code>res.partner</code>。但記得上面那節——表層的 CHECK 約束和 compute 的可寫性，這個畫面都看不到。</p>
+
+</main>
+
+<script type="module">
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+try {
+  const { default: mermaid } = await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');
+  mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'neutral',
+    er: { useMaxWidth: false, entityPadding: 12, minEntityWidth: 130 } });
+  await mermaid.run({ querySelector: '.mermaid' });
+} catch (e) {
+  document.getElementById('fallback').style.display = 'block';
+  console.error(e);
+}
+let z = 1;
+const canvas = document.getElementById('canvas'), label = document.getElementById('zoomval');
+const apply = () => { canvas.style.transform = 'scale(' + z + ')'; label.textContent = Math.round(z*100) + '%'; };
+document.getElementById('zoomin').onclick = () => { z = Math.min(z*1.25, 4); apply(); };
+document.getElementById('zoomout').onclick = () => { z = Math.max(z/1.25, .25); apply(); };
+document.getElementById('zoomreset').onclick = () => { z = 1; apply(); };
+</script>
+
+</body>
+</html>

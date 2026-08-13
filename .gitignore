@@ -1,0 +1,7 @@
+# 建置產物。3.5 MB，git 存的是完整快照不是差異，
+# 每次重建都會在歷史裡多留一份，改幾十次 repo 就會肥到不可收拾。
+# 需要時用 build-offline.py 重建，vendor/mermaid.min.js 已在 repo 內。
+global-view.offline.html
+
+# macOS
+.DS_Store

@@ -266,6 +266,7 @@ ul.tight li { margin: .4rem 0; }
   #hint { display: none; }
 }
 </style>
+<script src="vendor/mermaid.min.js"></script>
 </head>
 <body>
 
@@ -999,9 +1000,9 @@ addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => fit(f
 const boot = document.getElementById('boot');
 try {
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
-  // 內嵌版直接用全域 mermaid；沒有內嵌時才回退到 CDN
-  const mermaid = window.mermaid
-    || (await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs')).default;
+  // mermaid 由 <head> 的 vendor/mermaid.min.js 提供（離線版則是內嵌的同一份）
+  const mermaid = window.mermaid;
+  if (!mermaid) throw new Error('vendor/mermaid.min.js 未載入');
   mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'neutral',
     er: { useMaxWidth: false, entityPadding: 14, minEntityWidth: 140 } });
 
@@ -1041,8 +1042,8 @@ try {
   boot.remove();
   document.getElementById('err').style.display = 'grid';
   document.getElementById('errmsg').textContent = window.mermaid
-    ? '內嵌的 mermaid 執行失敗，圖無法繪製。錯誤詳情在瀏覽器主控台。'
-    : 'Mermaid 沒有載入成功。這一份需要網路連線，離線版是 global-view.offline.html。';
+    ? 'mermaid 執行失敗，圖無法繪製。錯誤詳情在瀏覽器主控台。'
+    : '找不到 mermaid。這一份需要同目錄下的 vendor/mermaid.min.js；若只複製了 HTML 檔，請改用 build-offline.py 產生的單檔版本。';
   console.error(err);
 }
 </script>

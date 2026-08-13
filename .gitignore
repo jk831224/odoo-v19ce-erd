@@ -1,7 +1,8 @@
 # 建置產物。3.5 MB，git 存的是完整快照不是差異，
 # 每次重建都會在歷史裡多留一份，改幾十次 repo 就會肥到不可收拾。
-# 需要時用 build-offline.py 重建，vendor/mermaid.min.js 已在 repo 內。
-global-view.offline.html
+# index.html 搭配 vendor/ 本來就能離線用；這個單檔版是給「只帶一個檔案」的情境，
+# 需要時跑 build-offline.py 重建即可。
+odoo-v19ce-erd-offline.html
 
 # macOS
 .DS_Store

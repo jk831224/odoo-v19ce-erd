@@ -89,7 +89,7 @@ WHERE m.model='stock.picking' AND f.name='backorder_id';"
 ## 擴充流程：加一塊模組
 
 1. **查證**。用上面的範本把該群 model 的必填、m2o、m2m、中介表結構、現有筆數全部查出來。先查 model 是否存在（`SELECT model FROM ir_model WHERE model LIKE 'stock.%'`），版本間會有增刪。
-2. **加 mermaid 實體與關係**到 `global-view.html` 的 `<pre class="mermaid">`。粒度維持一致：**只列主鍵、外鍵、必填欄位**。指向圖外實體的必填外鍵要列出並在註解標「圖外」。
+2. **加 mermaid 實體與關係**到 `index.html` 的 `<pre class="mermaid">`。粒度維持一致：**只列主鍵、外鍵、必填欄位**。指向圖外實體的必填外鍵要列出並在註解標「圖外」。
 3. **加 hover 資料**到 JS 的 `ENTITY` 物件。每個實體都要有，`role` 一句話、`rows` 放實查數字、`flag` 放那個實體最容易踩的坑（危險的用 `warn: true`）。
 4. **加索引分組**到 `GROUPS` 陣列，key 要與 mermaid 的實體 id 一致。
 5. **更新這幾處數字**：工具列副標的實體數、`#boot` 的「正在繪製 N 個實體」、說明面板「這張圖現在涵蓋什麼」的三段（已納入 / 接縫 / 尚未畫）。
@@ -110,7 +110,7 @@ WHERE m.model='stock.picking' AND f.name='backorder_id';"
 - [ ] 載入指示會消失、錯誤層沒有顯示
 - [ ] 離線版：過濾掉 localhost 後網路請求為 0
 - [ ] 對比度：小字 ≥ 4.5:1（深淺色都要）
-- [ ] `node ~/.claude/skills/impeccable/scripts/detect.mjs --json global-view.html`
+- [ ] `node ~/.claude/skills/impeccable/scripts/detect.mjs --json index.html`
 
 ## 版本差異（19 相對於 18，實查發現）
 

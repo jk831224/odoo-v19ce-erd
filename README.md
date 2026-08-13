@@ -8,14 +8,15 @@
 
 | 檔案 | 用途 |
 |---|---|
-| `global-view.html` | **主檔，所有改動改這裡。**從 jsdelivr 載入 mermaid，需要網路 |
-| `global-view.offline.html` | 產物，mermaid 內嵌，完全離線。**不要直接編輯**，下次組裝會覆蓋 |
-| `sale-chain.html` | 銷售鏈（`sale.order` → `stock.picking` → `account.move`），尚未併入全景圖 |
-| `build-offline.py` | 組裝腳本 |
+| `index.html` | **主檔，所有改動改這裡。**從同目錄的 `vendor/` 載入 mermaid，不需要網路 |
 | `vendor/mermaid.min.js` | mermaid 11 UMD bundle，3.4 MB，0 個動態 import 所以離線可用 |
+| `sale-chain.html` | 銷售鏈（`sale.order` → `stock.picking` → `account.move`），尚未併入全景圖 |
+| `build-offline.py` | 產生單一檔案版本的組裝腳本 |
 | `archive/contacts-static.html` | 第一版的靜態長頁，已被畫布版取代，留著對照 |
 
-日常看圖用 `global-view.offline.html`，雙擊即可，不需要伺服器也不需要網路。
+日常看圖直接開 `index.html` 就好——它與 `vendor/` 在一起時本來就不需要網路。
+
+`build-offline.py` 產生的 `odoo-v19ce-erd-offline.html` 是**單一檔案**版本，把 mermaid 內嵌進去，適合寄給別人或單獨存檔。它是產物，不進版控。
 
 ## 怎麼看
 
@@ -52,15 +53,17 @@
 
 銷售鏈已經畫在 `sale-chain.html`，但還沒併進全景圖。
 
-## 重建離線版
+## 產生單檔版本
 
-改完 `global-view.html` 之後：
+改完 `index.html` 之後：
 
 ```bash
 python3 build-offline.py
 ```
 
-腳本會內嵌 mermaid、移除 sourceMap 註解、跳脫 `</script>`，並檢查產出的檔案沒有任何外部引用。
+腳本會把 `<script src="vendor/mermaid.min.js">` 換成內嵌的 mermaid、移除 sourceMap 註解、跳脫 `</script>`，並檢查產出的檔案沒有任何外部引用。
+
+平常不需要跑它——`index.html` 配上 `vendor/` 已經可以離線使用。只有要把單一檔案帶走時才需要。
 
 ## 已知限制
 

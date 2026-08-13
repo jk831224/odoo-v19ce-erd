@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""把 global-view.html 與 vendor/mermaid.min.js 組成單一離線檔。
+"""把 index.html 與 vendor/mermaid.min.js 組成單一可攜的離線檔。
 
 用法：
     python3 build-offline.py
 
-改動一律改 global-view.html，然後跑這支腳本重新產生 global-view.offline.html。
-不要直接編輯 .offline.html，它是產物，下次組裝就會被覆蓋。
+index.html 本身就能離線使用，只要 vendor/ 在旁邊。這支腳本的用途是產生
+「單一檔案」版本，方便寄給別人或存檔——它把 vendor 的 script 標籤替換成
+內嵌的 mermaid，因此不再需要任何同目錄檔案。
+
+改動一律改 index.html，然後重跑這支腳本。不要直接編輯產物。
 """
 
 import pathlib
@@ -13,9 +16,10 @@ import re
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
-SRC = HERE / "global-view.html"
+SRC = HERE / "index.html"
 LIB = HERE / "vendor" / "mermaid.min.js"
-OUT = HERE / "global-view.offline.html"
+OUT = HERE / "odoo-v19ce-erd-offline.html"
+TAG = '<script src="vendor/mermaid.min.js"></script>'
 
 
 def main() -> int:
@@ -33,14 +37,11 @@ def main() -> int:
     n_close = lib.count("</script>")
     lib = lib.replace("</script>", "<\\/script>")
 
-    if "</head>" not in html:
-        print("global-view.html 裡找不到 </head>，無法插入", file=sys.stderr)
+    if TAG not in html:
+        print(f"{SRC.name} 裡找不到 vendor 的 script 標籤，無法替換：\n  {TAG}", file=sys.stderr)
         return 1
 
-    OUT.write_text(
-        html.replace("</head>", f"<script>{lib}</script>\n</head>", 1),
-        encoding="utf-8",
-    )
+    OUT.write_text(html.replace(TAG, f"<script>{lib}</script>", 1), encoding="utf-8")
 
     # 確認沒有任何會發出請求的外部引用
     out_text = OUT.read_text(encoding="utf-8")

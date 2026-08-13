@@ -75,3 +75,9 @@ python3 build-offline.py
 意思是全圖適配只能看結構輪廓，讀內容得放大。實體索引與 hover 卡就是為了補這一點。
 
 另外 Mermaid 不支援手動定位，所以無法把「銷售放右邊、會計放下面」這種空間語意固定下來。已經出現長距離跨越的連線（例如 `product.uom` 被排到左下角，連到右側的 `product.product`）。實體再增加時，可能需要改成分層顯示或換成可手動佈局的格式——見 `CLAUDE.md` 的擴充規則。
+
+## 授權
+
+本專案以 MIT 授權釋出，見 [LICENSE](LICENSE)。
+
+`vendor/mermaid.min.js` 是第三方元件（[mermaid](https://github.com/mermaid-js/mermaid) 11，MIT 授權），版權屬於其原作者，不在本專案的著作權範圍內。

@@ -68,6 +68,13 @@ WHERE m.model='stock.picking' AND f.name='backorder_id';"
 - **`field_description` 與 `help` 是 jsonb。**直接 `SELECT` 會噴 `invalid input syntax for type json`，要用 `->>'en_US'`。
 - **`related` 欄位在資料庫裡不存在。**`product.product` 有 15 個欄位（含 `name`、`list_price`）是 related 到 `product_tmpl_id.*`，ORM 會穿透但 SQL 查不到。做報表或跟 RD 談 join 條件時這個差異是關鍵。
 - 統計欄位時記得排除 `create_uid` / `write_uid` / `create_date` / `write_date`，它們每個 model 都有，是雜訊。
+- **官方 zh_TW 標籤查得到，但不能照單全收。**`odoo-dev-19` 的 zh_TW 是 active 的，`field_description->>'zh_TW'` 全庫 8217/8471 個欄位有值，本圖涵蓋的 101 個 model 欄位中 99 個有翻譯。它是實查事實（使用者切繁中時真的會看到這些字），但品質參差，2026-08-14 逐條比對後確認至少四類問題：
+  - **語意錯**：`res.partner.state_id` 譯「狀態」（實為州／省，同庫 `res.city.state_id` 卻譯「州/省」）；`res.partner.bank.partner_id` 譯「科目持有人」（en 為 Account Holder，此處 Account 是帳戶非會計科目）；`res.partner.group_on` 譯「平日」。
+  - **中國用字**：「賬」而非「帳」（`autopost_bills` 譯「自動過賬賬單」、`property_account_*_id` 譯「應收／應付賬戶」）。
+  - **同概念不同譯**：`customer_rank`「客戶評級」對 `supplier_rank`「供應商排名」；`property_payment_term_id`「客戶支付條款」對 `account.payment.term.name`「付款條件」；`res.company.partner_id`「業務夥伴」對 `res.users.partner_id`「相關的合作夥伴」；`product.template.attribute.line`「產品範本…」對 `.value`「產品模板…」。
+  - **缺翻譯**：`res.partner.group_rfq`、`res.partner.bank.l10n_us_bank_account_type` 無 zh_TW。
+
+  引用官方譯法時要標明來源是 zh_TW 語言包；自己改寫成台灣慣用語則屬建議，兩者不可混為一談。圖上 `property_account_receivable_id` 等四條刻意保留專案自訂的台灣會計用語（應收科目／應付科目／客戶付款條件／供應商付款條件），不採官方譯法。107 個欄位的完整中英對照與疑義清單見 [odoo-v19ce-erd-欄位中英對照表.xlsx](odoo-v19ce-erd-欄位中英對照表.xlsx)（2026-08-14 實查）。**加新模組時記得同步更新它**，否則對照表會與圖不一致。
 
 ### Mermaid
 

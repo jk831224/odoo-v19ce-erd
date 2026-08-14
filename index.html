@@ -275,152 +275,152 @@ ul.tight li { margin: .4rem 0; }
 <pre class="mermaid">
 erDiagram
     res_partner["res.partner"] {
-        integer id PK
-        char name "CHECK 條件式必填"
-        selection type "contact invoice delivery other"
-        boolean is_company
-        many2one parent_id FK "自身 set-null"
-        integer customer_rank "整數非布林"
-        integer supplier_rank "整數非布林"
-        char vat "統一編號"
-        char email
-        char phone
-        char street
-        char zip
-        char city "純文字"
-        many2one country_id FK "選填"
-        many2one state_id FK "選填"
-        many2one city_id FK "選填"
-        many2one industry_id FK "選填"
-        many2one user_id FK "compute 可覆寫"
-        many2one buyer_id FK "選填"
-        many2one company_id FK "選填"
+        integer id PK "識別號"
+        char name "名稱 · CHECK 條件式必填"
+        selection type "地址類型 · contact invoice delivery other"
+        boolean is_company "公司"
+        many2one parent_id FK "關聯公司 · 自身 set-null"
+        integer customer_rank "客戶評級 · 整數非布林"
+        integer supplier_rank "供應商排名 · 整數非布林"
+        char vat "稅務編號 · 統一編號"
+        char email "電郵"
+        char phone "電話"
+        char street "街道"
+        char zip "郵遞區號"
+        char city "城市 · 純文字"
+        many2one country_id FK "國家 · 選填"
+        many2one state_id FK "狀態 · 選填"
+        many2one city_id FK "城市識別碼 · 選填"
+        many2one industry_id FK "行業 · 選填"
+        many2one user_id FK "銷售員 · compute 可覆寫"
+        many2one buyer_id FK "買方 · 選填"
+        many2one company_id FK "公司 · 選填"
         many2one property_payment_term_id FK "客戶付款條件"
         many2one property_supplier_payment_term_id FK "供應商付款條件"
         many2one property_account_receivable_id FK "應收科目"
         many2one property_account_payable_id FK "應付科目"
-        selection autopost_bills "required 有預設"
-        selection group_on "required 有預設"
+        selection autopost_bills "自動過賬賬單 · required 有預設"
+        selection group_on "平日 · required 有預設"
         selection group_rfq "required 有預設"
     }
     res_country["res.country"] {
-        integer id PK
-        char code "required"
-        char name "required"
+        integer id PK "識別號"
+        char code "國家/地區代碼 · required"
+        char name "國家名稱 · required"
     }
     res_country_state["res.country.state"] {
-        integer id PK
-        char code "required"
-        char name "required"
-        many2one country_id FK "required"
+        integer id PK "識別號"
+        char code "州/省代碼 · required"
+        char name "州/省名稱 · required"
+        many2one country_id FK "國家 / 地區 · required"
     }
     res_city["res.city"] {
-        integer id PK
-        char name "required"
-        many2one country_id FK "required"
-        many2one state_id FK "選填"
+        integer id PK "識別號"
+        char name "名稱 · required"
+        many2one country_id FK "國家 · required"
+        many2one state_id FK "州/省 · 選填"
     }
     res_partner_category["res.partner.category"] {
-        integer id PK
-        char name "required"
-        many2one parent_id FK "自身 標籤有階層"
+        integer id PK "識別號"
+        char name "名稱 · required"
+        many2one parent_id FK "類別 · 自身 標籤有階層"
     }
     partner_category_rel["res_partner_res_partner_category_rel"] {
         integer partner_id PK,FK "NOT NULL"
         integer category_id PK,FK "NOT NULL"
     }
     res_partner_industry["res.partner.industry"] {
-        integer id PK
-        char name "非必填"
+        integer id PK "識別號"
+        char name "名稱 · 非必填"
     }
     res_users["res.users"] {
-        integer id PK
-        many2one partner_id FK "required"
+        integer id PK "識別號"
+        many2one partner_id FK "相關的合作夥伴 · required"
     }
     res_company["res.company"] {
-        integer id PK
-        many2one partner_id FK "required"
+        integer id PK "識別號"
+        many2one partner_id FK "業務夥伴 · required"
     }
     res_partner_bank["res.partner.bank"] {
-        integer id PK
-        char acc_number "required"
-        many2one partner_id FK "required"
+        integer id PK "識別號"
+        char acc_number "帳戶號碼 · required"
+        many2one partner_id FK "科目持有人 · required"
         selection l10n_us_bank_account_type "required 預設 checking"
     }
     account_payment_term["account.payment.term"] {
-        integer id PK
-        char name "required"
-        integer sequence "required"
+        integer id PK "識別號"
+        char name "付款條件 · required"
+        integer sequence "序列號 · required"
     }
     account_account["account.account"] {
-        integer id PK
-        char name "required"
-        selection account_type "required"
+        integer id PK "識別號"
+        char name "帳戶名稱 · required"
+        selection account_type "類型 · required"
     }
 
     product_template["product.template"] {
-        integer id PK
-        char name "required"
-        many2one uom_id FK "required restrict"
-        many2one categ_id FK "選填 set-null"
-        many2one company_id FK "選填 set-null"
-        selection type "required"
-        selection tracking "required"
-        selection service_tracking "required"
+        integer id PK "識別號"
+        char name "名稱 · required"
+        many2one uom_id FK "單位 · required restrict"
+        many2one categ_id FK "產品分類 · 選填 set-null"
+        many2one company_id FK "公司 · 選填 set-null"
+        selection type "產品類型 · required"
+        selection tracking "追蹤 · required"
+        selection service_tracking "由訂單建立 · required"
     }
     product_product["product.product"] {
-        integer id PK
-        many2one product_tmpl_id FK "required cascade"
+        integer id PK "識別號"
+        many2one product_tmpl_id FK "產品模板 · required cascade"
     }
     product_category["product.category"] {
-        integer id PK
-        char name "required"
-        many2one parent_id FK "自身 cascade"
+        integer id PK "識別號"
+        char name "名稱 · required"
+        many2one parent_id FK "上級類別 · 自身 cascade"
     }
     uom_uom["uom.uom"] {
-        integer id PK
-        char name "required"
-        float relative_factor "required"
-        many2one relative_uom_id FK "自身 cascade"
+        integer id PK "識別號"
+        char name "單位名稱 · required"
+        float relative_factor "包含 · required"
+        many2one relative_uom_id FK "參考單位 · 自身 cascade"
         float factor "絕對數量"
-        char parent_path "階層索引"
+        char parent_path "上級路徑 · 階層索引"
     }
     product_uom["product.uom"] {
-        integer id PK
-        char barcode "required"
-        many2one product_id FK "required cascade"
-        many2one uom_id FK "required cascade"
+        integer id PK "識別號"
+        char barcode "條碼 · required"
+        many2one product_id FK "商品 · required cascade"
+        many2one uom_id FK "單位 · required cascade"
     }
     product_supplierinfo["product.supplierinfo"] {
-        integer id PK
-        many2one partner_id FK "required cascade"
-        many2one product_tmpl_id FK "required cascade"
-        many2one product_uom_id FK "required restrict"
-        many2one currency_id FK "required restrict 圖外"
-        many2one product_id FK "選填 set-null"
-        float min_qty "required"
-        integer delay "required"
+        integer id PK "識別號"
+        many2one partner_id FK "供應商 · required cascade"
+        many2one product_tmpl_id FK "產品模板 · required cascade"
+        many2one product_uom_id FK "單位 · required restrict"
+        many2one currency_id FK "貨幣 · required restrict 圖外"
+        many2one product_id FK "產品款式 · 選填 set-null"
+        float min_qty "數量 · required"
+        integer delay "前置時間 · required"
     }
     product_attribute["product.attribute"] {
-        integer id PK
-        char name "required"
-        selection create_variant "required"
-        selection display_type "required"
+        integer id PK "識別號"
+        char name "屬性 · required"
+        selection create_variant "建立款式變體 · required"
+        selection display_type "顯示類型 · required"
     }
     product_attribute_value["product.attribute.value"] {
-        integer id PK
-        char name "required"
-        many2one attribute_id FK "required cascade"
+        integer id PK "識別號"
+        char name "值 · required"
+        many2one attribute_id FK "屬性 · required cascade"
     }
     ptal["product.template.attribute.line"] {
-        integer id PK
-        many2one product_tmpl_id FK "required cascade"
-        many2one attribute_id FK "required restrict"
+        integer id PK "識別號"
+        many2one product_tmpl_id FK "產品模板 · required cascade"
+        many2one attribute_id FK "屬性 · required restrict"
     }
     ptav["product.template.attribute.value"] {
-        integer id PK
-        many2one attribute_line_id FK "required cascade"
-        many2one product_attribute_value_id FK "required cascade"
+        integer id PK "識別號"
+        many2one attribute_line_id FK "屬性資料行 · required cascade"
+        many2one product_attribute_value_id FK "屬性值 · required cascade"
     }
     variant_combination["product_variant_combination"] {
         integer product_product_id PK,FK "NOT NULL cascade"

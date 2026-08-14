@@ -65,6 +65,19 @@ python3 build-offline.py
 
 平常不需要跑它——`index.html` 配上 `vendor/` 已經可以離線使用。只有要把單一檔案帶走時才需要。
 
+## 部署
+
+| 項目 | 位置 |
+|---|---|
+| 原始碼 | <https://github.com/jk831224/odoo-v19ce-erd>（public，MIT） |
+| 線上版 | <https://jk831224.github.io/odoo-v19ce-erd/> |
+
+GitHub Pages 從 `main` 分支的根目錄發布，push 之後自動重新建置，約一分鐘生效。`index.html` 是根路徑的預設頁，所以網址不需要帶檔名。
+
+`odoo-v19ce-erd-offline.html` 在 `.gitignore` 裡，不會被推上去，也不會出現在線上版。
+
+**自訂網域尚未設定。**計畫用 `erd.2dfacelab.org`：先在 DNS 加一筆 CNAME 指向 `jk831224.github.io`，等 `dig +short erd.2dfacelab.org` 查得到之後，再到 repo 的 Settings → Pages 填入自訂網域，Let's Encrypt 憑證會自動簽發。
+
 ## 已知限制
 
 **Mermaid 的自動佈局有天花板，而且已經開始碰到。**目前 24 個實體，圖是 5093 × 3916。在 1440×900 螢幕上：

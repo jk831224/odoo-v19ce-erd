@@ -76,6 +76,8 @@ body {
 #world { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; }
 #world.eased { transition: transform 260ms cubic-bezier(.22,.61,.36,1); }
 .mermaid { display: block; }
+.view { display: block; }
+.view[hidden] { display: none; }   /* [hidden] 的預設值擋不住上一行，要明寫 */
 #world svg { display: block; overflow: visible; }
 
 g.node { cursor: pointer; }
@@ -108,6 +110,7 @@ g.node.hot rect:first-of-type { stroke: var(--accent); stroke-width: 2.5px; }
   height: 30px; min-width: 30px; padding: 0 .45rem; border-radius: 5px;
   display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
   cursor: pointer; transition: background 140ms ease, color 140ms ease;
+  white-space: nowrap;   /* 空間不足時中文會逐字斷成直排 */
 }
 .tbtn:hover { background: var(--surface-2); color: var(--ink); }
 .tbtn:active { background: var(--rule-soft); }
@@ -264,6 +267,14 @@ ul.tight li { margin: .4rem 0; }
   #panel { border-left: 0; }
   #title span { display: none; }
   #hint { display: none; }
+  /* 視圖切換是主要導航，讓它留在列上；縮放這裡改用 pinch 與雙擊 */
+  #zoomcluster { display: none; }
+  #viewswitch { flex-shrink: 0; }
+  #title b { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+}
+/* 再窄下去標題只剩一兩個字，看起來像壞掉；分頁標題還在，讓位給導航 */
+@media (max-width: 560px) {
+  #title { display: none; }
 }
 </style>
 <script src="vendor/mermaid.min.js"></script>
@@ -272,6 +283,31 @@ ul.tight li { margin: .4rem 0; }
 
 <div id="stage">
   <div id="world">
+<div class="view" data-view="overview">
+<pre class="mermaid">
+erDiagram
+    contacts["聯絡人 · 12 個實體"] {
+        model res_partner "中心 · 45 筆"
+        model res_users "使用者 · 公司"
+        model res_country "國家 · 州省 · 城市"
+        model res_partner_category "標籤 · m2m 中介表"
+        model res_partner_bank "銀行帳戶"
+        model account_payment_term "付款條件 · 會計科目"
+    }
+    product["商品主檔 · 12 個實體"] {
+        model product_template "範本 · 37 筆"
+        model product_product "變體 · 47 筆"
+        model product_category "分類樹"
+        model uom_uom "計量單位 · 19 已改版"
+        model product_supplierinfo "供應商價目"
+        model product_attribute "屬性系統 · 四層"
+    }
+
+    contacts ||--o{ product : "product.supplierinfo.partner_id"
+</pre>
+</div>
+
+<div class="view" data-view="contacts">
 <pre class="mermaid">
 erDiagram
     res_partner["res.partner"] {
@@ -358,6 +394,39 @@ erDiagram
         selection account_type "類型 · required"
     }
 
+    res_country ||--o{ res_country_state : "country_id"
+    res_country ||--o{ res_city : "country_id"
+    res_country_state |o--o{ res_city : "state_id"
+    res_country |o--o{ res_partner : "country_id"
+    res_country_state |o--o{ res_partner : "state_id"
+    res_city |o--o{ res_partner : "city_id"
+    res_partner_industry |o--o{ res_partner : "industry_id"
+    res_users |o--o{ res_partner : "user_id"
+    res_users |o--o{ res_partner : "buyer_id"
+    res_company |o--o{ res_partner : "company_id"
+    res_partner |o--o{ res_partner : "parent_id / commercial_partner_id"
+    res_partner ||--o{ partner_category_rel : "partner_id"
+    res_partner_category ||--o{ partner_category_rel : "category_id"
+    res_partner_category |o--o{ res_partner_category : "parent_id"
+    res_partner ||--o{ res_partner_bank : "partner_id"
+    res_partner ||--o{ res_users : "partner_id"
+    res_partner ||--o{ res_company : "partner_id"
+    account_payment_term |o--o{ res_partner : "property_payment_term_id"
+    account_payment_term |o--o{ res_partner : "property_supplier_payment_term_id"
+    account_account |o--o{ res_partner : "property_account_receivable_id"
+    account_account |o--o{ res_partner : "property_account_payable_id"
+</pre>
+</div>
+
+<div class="view" data-view="product">
+<pre class="mermaid">
+erDiagram
+    res_partner["res.partner"] {
+        integer id PK "邊界 · 完整定義在聯絡人視圖"
+    }
+    res_company["res.company"] {
+        integer id PK "邊界 · 完整定義在聯絡人視圖"
+    }
     product_template["product.template"] {
         integer id PK "識別號"
         char name "名稱 · required"
@@ -431,28 +500,6 @@ erDiagram
         integer product_template_attribute_line_id PK,FK "NOT NULL cascade"
     }
 
-    res_country ||--o{ res_country_state : "country_id"
-    res_country ||--o{ res_city : "country_id"
-    res_country_state |o--o{ res_city : "state_id"
-    res_country |o--o{ res_partner : "country_id"
-    res_country_state |o--o{ res_partner : "state_id"
-    res_city |o--o{ res_partner : "city_id"
-    res_partner_industry |o--o{ res_partner : "industry_id"
-    res_users |o--o{ res_partner : "user_id"
-    res_users |o--o{ res_partner : "buyer_id"
-    res_company |o--o{ res_partner : "company_id"
-    res_partner |o--o{ res_partner : "parent_id / commercial_partner_id"
-    res_partner ||--o{ partner_category_rel : "partner_id"
-    res_partner_category ||--o{ partner_category_rel : "category_id"
-    res_partner_category |o--o{ res_partner_category : "parent_id"
-    res_partner ||--o{ res_partner_bank : "partner_id"
-    res_partner ||--o{ res_users : "partner_id"
-    res_partner ||--o{ res_company : "partner_id"
-    account_payment_term |o--o{ res_partner : "property_payment_term_id"
-    account_payment_term |o--o{ res_partner : "property_supplier_payment_term_id"
-    account_account |o--o{ res_partner : "property_account_receivable_id"
-    account_account |o--o{ res_partner : "property_account_payable_id"
-
     product_template ||--o{ product_product : "product_tmpl_id"
     product_category |o--o{ product_template : "categ_id"
     product_category |o--o{ product_category : "parent_id"
@@ -479,6 +526,7 @@ erDiagram
     product_attribute_value ||--o{ pav_ptal_rel : "product_attribute_value_id"
     ptal ||--o{ pav_ptal_rel : "product_template_attribute_line_id"
 </pre>
+</div>
   </div>
 </div>
 
@@ -488,7 +536,12 @@ erDiagram
     <span>聯絡人 + 商品主檔 · 24 個實體</span>
   </div>
   <div id="spacer"></div>
-  <div class="cluster">
+  <div class="cluster" id="viewswitch">
+    <button class="tbtn" data-goto="overview" aria-pressed="true" title="模組總覽">總覽</button>
+    <button class="tbtn" data-goto="contacts" aria-pressed="false" title="聯絡人 · 12 個實體">聯絡人</button>
+    <button class="tbtn" data-goto="product" aria-pressed="false" title="商品主檔 · 12 個實體">商品主檔</button>
+  </div>
+  <div class="cluster" id="zoomcluster">
     <button class="tbtn" id="zout" aria-label="縮小" title="縮小　−"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
     <span id="zoomlabel">100%</span>
     <button class="tbtn" id="zin" aria-label="放大" title="放大　+"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -513,7 +566,7 @@ erDiagram
     <details class="sec" open>
       <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>實體索引</summary>
       <div class="in">
-        <p style="margin-top:0">點任一項飛到該實體並放大。全圖適配時框內文字太小讀不了，用這裡定位比自己找快。</p>
+        <p style="margin-top:0">點任一項飛到該實體並放大。<strong>不在目前視圖的會自動切過去</strong>，不必先知道它畫在哪一張。</p>
         <div class="idx" id="idx"></div>
       </div>
     </details>
@@ -521,12 +574,15 @@ erDiagram
     <details class="sec">
       <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>這張圖現在涵蓋什麼</summary>
       <div class="in">
+        <div class="fact a">
+          <p><strong>分成三張視圖，不是一張全景。</strong>總覽只畫模組方塊與接縫，點方塊進入該視圖；聯絡人與商品主檔各自一張，各 12 個實體。單張畫滿 24 個實體時全圖適配只剩 2.8px，視圖切分就是為了解決這件事。</p>
+        </div>
         <div class="fact w">
-          <p><strong>標題寫「全景圖」，但目前畫了兩塊。</strong>聯絡人與商品主檔，共 24 個實體。Odoo 19 CE 的完整 model 數量遠大於此，不要把這張圖當成完整的資料庫地圖。</p>
+          <p><strong>標題寫「全景圖」，但只有兩塊。</strong>共 24 個實體。Odoo 19 CE 的完整 model 數量遠大於此，不要把這張圖當成完整的資料庫地圖。</p>
         </div>
         <p><strong>第一塊 · 聯絡人</strong>：<code>res.partner</code> 為中心，加上 <code>res.country</code>、<code>res.country.state</code>、<code>res.city</code>、<code>res.partner.category</code> 與其 m2m 中介表、<code>res.partner.industry</code>、<code>res.users</code>、<code>res.company</code>、<code>res.partner.bank</code>、<code>account.payment.term</code>、<code>account.account</code>。</p>
         <p><strong>第二塊 · 商品主檔</strong>：<code>product.template</code> / <code>product.product</code> 雙層，加上 <code>product.category</code> 分類樹、<code>uom.uom</code>、<code>product.uom</code> 條碼表、<code>product.supplierinfo</code> 供應商價目，以及產生變體的四層屬性系統（<code>product.attribute</code>、<code>product.attribute.value</code>、<code>product.template.attribute.line</code>、<code>product.template.attribute.value</code>）與兩張中介表。</p>
-        <p><strong>兩塊的接縫</strong>：<code>product.supplierinfo.partner_id</code> 指向 <code>res.partner</code>，且是 <code>required</code> + <code>cascade</code>。供應商價目是商品與聯絡人唯一的直接連結。</p>
+        <p><strong>兩塊的接縫</strong>：<code>product.supplierinfo.partner_id</code> 指向 <code>res.partner</code>，且是 <code>required</code> + <code>cascade</code>。供應商價目是商品與聯絡人唯一的直接連結。商品視圖裡那個只有主鍵的 <code>res.partner</code> 是邊界節點，標示「這裡接到別的地方」，完整定義在聯絡人視圖。</p>
         <p><strong>已畫但不在這一張裡</strong>：銷售鏈（<code>sale.order</code> → <code>stock.picking</code> → <code>account.move</code> 與其明細層，含 9 個實體）在同一資料夾的 <code>sale-chain.html</code>。那張圖的 <code>res.partner</code> 與 <code>product.product</code> 就是這裡的同一批記錄。</p>
         <p><strong>尚未畫</strong>：採購鏈、庫存內部（<code>stock.quant</code>、<code>stock.location</code> 階層、補貨鏈）、會計側的對帳與稅務、價目表規則（<code>product.pricelist.item</code>）、商品標籤、製造、專案、人資，以及所有 <code>l10n_*</code> 在地化模組加上的欄位。</p>
         <p><strong>資料來源</strong>：<code>odoo-dev-19</code> 資料庫的 <code>ir_model_fields</code> 與 PostgreSQL 系統表，74 個模組已安裝（含 <code>l10n_tw</code>、<code>base_vat</code>）。查詢日期 2026-08-13。裝不同的模組會得到不同的欄位集合，這張圖反映的是這一套環境。</p>
@@ -742,11 +798,17 @@ FROM res_partner GROUP BY type;"</pre>
   <span><kbd>I</kbd> 說明</span>
 </div>
 
-<div id="boot"><p><i></i>正在繪製 24 個實體</p></div>
+<div id="boot"><p><i></i>正在繪製 3 張視圖 · 24 個實體</p></div>
 <div id="err"><div id="errmsg"></div></div>
 
 <script type="module">
 const ENTITY = {
+  // 總覽視圖的模組方塊。key 就是視圖 id，所以點擊時直接切過去，不必另做對應表
+  contacts: { role: '點此進入視圖', rows: [['實體','12'],['關係','21 條'],['中心','res.partner · 45 筆']],
+    flag: '國家／州省／城市三層、標籤 m2m、以及掛在 partner 上的兩個會計碎片都在這裡。' },
+  product: { role: '點此進入視圖', rows: [['實體','12'],['關係','21 條'],['雙層','範本 37 / 變體 47']],
+    flag: '變體由四層屬性系統產生。計量單位在 19 已改版，uom.category 不存在了。', warn: true },
+
   res_partner: { role: '導入的主角', rows: [['欄位總數','186'],['store=true','106'],['required','3'],['外鍵','23 個，散在 15 個實體'],['現有資料','45 筆，全 type=contact']],
     flag: '26 筆有母記錄、13 筆是公司。name 的必填由表層 CHECK 決定，不是欄位屬性。', warn: true },
   res_country: { role: 'Odoo 內建主檔', rows: [['現有筆數','251'],['必填','code、name']], flag: '不用自己建，匯入時直接對應。' },
@@ -797,7 +859,15 @@ const zlabel= document.getElementById('zoomlabel');
 const hint  = document.getElementById('hint');
 
 const MIN = .05, MAX = 4;
-let scale = 1, tx = 0, ty = 0, box = null;
+let scale = 1, tx = 0, ty = 0;
+
+// 每張視圖各有自己的尺寸與節點表。box 不能共用：切過去後若沿用前一張的尺寸，
+// fit() 會算出錯的縮放。nodes 也必須分開，否則 res_partner 這種跨視圖出現的
+// key 會互相覆蓋
+const VIEW_IDS = ['overview', 'contacts', 'product'];
+const views = {};              // id -> { el, box, nodes: { key: node } }
+let currentView = VIEW_IDS[0];
+const curBox = () => views[currentView]?.box;
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const vw = () => innerWidth || document.documentElement.clientWidth || screen.width || 1280;
@@ -816,6 +886,7 @@ function zoomCenter(factor) {
   setTimeout(() => ease(false), 280);
 }
 function fit(animate = true) {
+  const box = curBox();
   if (!box || !box.w || !box.h) return;
   const padX = 96, padTop = 104, padBottom = 72;
   const availW = Math.max(240, vw() - padX * 2);
@@ -827,6 +898,7 @@ function fit(animate = true) {
   if (animate) setTimeout(() => ease(false), 280);
 }
 function actual() {
+  const box = curBox();
   if (!box) return;
   ease(true); scale = 1;
   tx = (vw() - box.w) / 2 - box.x;
@@ -895,14 +967,44 @@ function hideTip() {
 }
 
 const GROUPS = [
-  { label: '聯絡人', keys: ['res_partner','res_country','res_country_state','res_city','res_partner_category','partner_category_rel','res_partner_industry','res_users','res_company','res_partner_bank','account_payment_term','account_account'] },
-  { label: '商品主檔', keys: ['product_template','product_product','product_category','uom_uom','product_uom','product_supplierinfo','product_attribute','product_attribute_value','ptal','ptav','variant_combination','pav_ptal_rel'] }
+  { label: '聯絡人', view: 'contacts', keys: ['res_partner','res_country','res_country_state','res_city','res_partner_category','partner_category_rel','res_partner_industry','res_users','res_company','res_partner_bank','account_payment_term','account_account'] },
+  { label: '商品主檔', view: 'product', keys: ['product_template','product_product','product_category','uom_uom','product_uom','product_supplierinfo','product_attribute','product_attribute_value','ptal','ptav','variant_combination','pav_ptal_rel'] }
 ];
-const nodeMap = {};
+// key -> 它的正典視圖。product 視圖裡的 res_partner 是邊界節點、不列入 GROUPS，
+// 所以索引只會有一個 res_partner，點它一律回聯絡人視圖看完整定義
+const HOME = {};
+GROUPS.forEach(g => g.keys.forEach(k => { HOME[k] = g.view; }));
+
+// 背景分頁不觸發 rAF，一律用逾時兜底
+const race = (p, ms) => Promise.race([p, new Promise(r => setTimeout(r, ms))]);
+const nextFrames = () => race(
+  new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))), 150);
+
+function switchView(id) {
+  if (!views[id]) return;
+  currentView = id;
+  VIEW_IDS.forEach(v => { if (views[v]) views[v].el.hidden = (v !== id); });
+  document.querySelectorAll('#viewswitch button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.goto === id)));
+  hideTip();
+  fit(false);
+  if (location.hash.slice(1) !== id) history.replaceState(null, '', '#' + id);
+}
+
+// 跨視圖時先切過去：隱藏中的節點量不到幾何，要等 DOM 顯示後才能飛
+function focusEntity(key, btn) {
+  const home = HOME[key];
+  if (home && home !== currentView) {
+    switchView(home);
+    nextFrames().then(() => flyTo(key, btn));
+  } else {
+    flyTo(key, btn);
+  }
+}
 
 // 飛到指定實體：依它的大小挑一個既讀得到、又裝得下的縮放
-function focusEntity(key, btn) {
-  const node = nodeMap[key];
+function flyTo(key, btn) {
+  const node = views[currentView]?.nodes[key];
   if (!node) return;
   // 用 SVG 內部座標，不要用 getBoundingClientRect：後者在 transform 過渡期間
   // 回傳的是動畫當下的位置，連續點索引時會與 tx/scale 不同步而算錯
@@ -939,7 +1041,8 @@ function buildIndex() {
   const idx = document.getElementById('idx');
   idx.textContent = '';
   GROUPS.forEach(g => {
-    const avail = g.keys.filter(k => nodeMap[k]);
+    const nodes = views[g.view]?.nodes || {};
+    const avail = g.keys.filter(k => nodes[k]);
     if (!avail.length) return;
     const h = document.createElement('h6');
     h.textContent = `${g.label}（${avail.length}）`;
@@ -947,7 +1050,7 @@ function buildIndex() {
     avail.forEach(k => {
       const b = document.createElement('button');
       const nameEl = document.createElement('b');
-      nameEl.textContent = nodeMap[k].querySelector('.nodeLabel')?.textContent?.trim() || k;
+      nameEl.textContent = nodes[k].querySelector('.nodeLabel')?.textContent?.trim() || k;
       const roleEl = document.createElement('i');
       roleEl.textContent = ENTITY[k]?.role || '';
       b.append(nameEl, roleEl);
@@ -957,18 +1060,23 @@ function buildIndex() {
   });
 }
 
-function wire(svg) {
+function wire(svg, viewId) {
+  const nodes = views[viewId].nodes;
   svg.querySelectorAll('g.node').forEach(node => {
     const m = (node.id || '').match(/entity-(.+?)-\d+$/);
     if (!m) return;
     const key = m[1];
-    nodeMap[key] = node;
+    nodes[key] = node;
     node.addEventListener('pointerenter', e => {
       if (dragging) return;
       node.classList.add('hot'); world.classList.add('dim'); showTip(node, key, e);
     });
     node.addEventListener('pointermove', e => { if (!dragging && tip.classList.contains('show')) placeTip(e); });
     node.addEventListener('pointerleave', hideTip);
+    // 總覽的方塊 key 就是視圖 id，點下去等於進入那張視圖。moved 用來排除拖曳誤觸
+    if (viewId === 'overview' && VIEW_IDS.includes(key)) {
+      node.addEventListener('click', () => { if (moved <= 6) switchView(key); });
+    }
   });
 }
 
@@ -993,6 +1101,13 @@ document.getElementById('zin').onclick  = () => zoomCenter(1.25);
 document.getElementById('zout').onclick = () => zoomCenter(1 / 1.25);
 document.getElementById('fit').onclick  = () => fit();
 document.getElementById('one').onclick  = () => actual();
+document.querySelectorAll('#viewswitch button').forEach(b =>
+  b.addEventListener('click', () => switchView(b.dataset.goto)));
+// 讓「寄一個連結指向某張視圖」可行
+addEventListener('hashchange', () => {
+  const id = location.hash.slice(1);
+  if (views[id] && id !== currentView) switchView(id);
+});
 
 let rt = null;
 addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => fit(false), 160); });
@@ -1006,27 +1121,30 @@ try {
   mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'neutral',
     er: { useMaxWidth: false, entityPadding: 14, minEntityWidth: 140 } });
 
-  // 背景分頁不會觸發 rAF，也可能拿不到 fonts.ready，一律用逾時兜底
-  const race = (p, ms) => Promise.race([p, new Promise(r => setTimeout(r, ms))]);
-  const nextFrames = () => race(
-    new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))), 150);
-
   // mermaid 靠實際文字寬度決定實體框大小，字型未就緒會量出偏小的框
   if (document.fonts?.ready) await race(document.fonts.ready, 2000);
-  await mermaid.run({ querySelector: '.mermaid' });
-  await nextFrames();  // 讓佈局 settle 再量 getBBox
+  await mermaid.run({ querySelector: '.mermaid' });   // 一次處理三張
+  await nextFrames();  // 讓佈局 settle 再量尺寸
 
-  const svg = world.querySelector('svg');
-  svg.style.maxWidth = 'none';
-  // useMaxWidth:false 時 mermaid 已把實際尺寸寫進 viewBox，比自行推算 getBBox 可靠
-  const vb = svg.viewBox?.baseVal;
-  const rect = svg.getBoundingClientRect();
-  box = { x: 0, y: 0,
-          w: vb?.width || rect.width || svg.width?.baseVal?.value || 0,
-          h: vb?.height || rect.height || svg.height?.baseVal?.value || 0 };
-  wire(svg);
+  // 先全部量好、接好線，最後才隱藏：隱藏中的元素量不到幾何
+  document.querySelectorAll('.view').forEach(el => {
+    const svg = el.querySelector('svg');
+    if (!svg) return;
+    svg.style.maxWidth = 'none';
+    // useMaxWidth:false 時 mermaid 已把實際尺寸寫進 viewBox，比自行推算 getBBox 可靠
+    const vb = svg.viewBox?.baseVal;
+    const rect = svg.getBoundingClientRect();
+    const id = el.dataset.view;
+    views[id] = { el, nodes: {}, box: { x: 0, y: 0,
+      w: vb?.width || rect.width || svg.width?.baseVal?.value || 0,
+      h: vb?.height || rect.height || svg.height?.baseVal?.value || 0 } };
+    wire(svg, id);
+  });
+  if (!Object.keys(views).length) throw new Error('沒有任何視圖被渲染');
+
   buildIndex();
-  fit(false);
+  const wanted = location.hash.slice(1);
+  switchView(views[wanted] ? wanted : VIEW_IDS[0]);   // 內含 hidden 切換與 fit
   fadeHint();
 
   // viewport 尚未就緒時（背景分頁、載入競速）第一次量到真實尺寸再適配一次

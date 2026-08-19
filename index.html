@@ -303,7 +303,15 @@ erDiagram
         model product_attribute "屬性系統 · 四層"
     }
 
+    purchase["採購 · 3 個實體"] {
+        model purchase_order "採購單 · 11 筆"
+        model purchase_order_line "訂單項目 · 23 筆"
+        model pol_ptav_rel "屬性值 m2m 中介表"
+    }
+
     contacts ||--o{ product : "product.supplierinfo.partner_id"
+    contacts ||--o{ purchase : "purchase.order.partner_id"
+    product |o--o{ purchase : "purchase.order.line.product_id"
 </pre>
 </div>
 
@@ -527,19 +535,95 @@ erDiagram
     ptal ||--o{ pav_ptal_rel : "product_template_attribute_line_id"
 </pre>
 </div>
+<div class="view" data-view="purchase">
+<pre class="mermaid">
+erDiagram
+    res_partner["res.partner"] {
+        integer id PK "邊界 · 完整定義在聯絡人視圖"
+    }
+    res_company["res.company"] {
+        integer id PK "邊界 · 完整定義在聯絡人視圖"
+    }
+    res_users["res.users"] {
+        integer id PK "邊界 · 完整定義在聯絡人視圖"
+    }
+    account_payment_term["account.payment.term"] {
+        integer id PK "邊界 · 完整定義在聯絡人視圖"
+    }
+    product_product["product.product"] {
+        integer id PK "邊界 · 完整定義在商品視圖"
+    }
+    uom_uom["uom.uom"] {
+        integer id PK "邊界 · 完整定義在商品視圖"
+    }
+    ptav["product.template.attribute.value"] {
+        integer id PK "邊界 · 完整定義在商品視圖"
+    }
+    purchase_order["purchase.order"] {
+        integer id PK "識別號"
+        char name "訂單關聯 · 單號，無 UNIQUE 約束"
+        datetime date_order "訂單截止日 · required"
+        selection state "狀態 · draft / sent / to approve / purchase / cancel"
+        many2one partner_id FK "供應商 · required restrict"
+        many2one company_id FK "公司 · required restrict"
+        many2one currency_id FK "貨幣 · required restrict 圖外"
+        many2one picking_type_id FK "交貨到 · required restrict 圖外"
+        many2one dest_address_id FK "直運地址 · 選填 set-null"
+        many2one payment_term_id FK "付款條件 · 選填 set-null"
+        many2one user_id FK "買方 · 選填 set-null"
+        many2one fiscal_position_id FK "財務規則 · 選填 圖外"
+        many2one incoterm_id FK "國際貿易術語 · 選填 圖外"
+    }
+    purchase_order_line["purchase.order.line"] {
+        integer id PK "識別號"
+        many2one order_id FK "訂單關聯 · required cascade"
+        text name "說明 · required"
+        float product_qty "數量 · required"
+        float price_unit "單價 · required"
+        selection display_type "顯示類型 · 決定下三欄必填與否"
+        many2one product_id FK "商品 · CHECK 條件式必填 restrict"
+        many2one product_uom_id FK "單位 · CHECK 條件式必填 restrict"
+        datetime date_planned "預計到貨 · CHECK 條件式必填"
+        many2one partner_id FK "業務夥伴 · 選填"
+        many2one company_id FK "公司 · 選填"
+        many2one location_final_id FK "採購物資位置 · 選填 圖外"
+        many2one orderpoint_id FK "訂貨點 · 選填 圖外"
+        many2one sale_line_id FK "原始銷售項目 · 選填 圖外"
+    }
+    pol_ptav_rel["product_template_attribute_value_purchase_order_line_rel"] {
+        integer purchase_order_line_id PK,FK "NOT NULL cascade"
+        integer product_template_attribute_value_id PK,FK "NOT NULL restrict"
+    }
+
+    res_partner ||--o{ purchase_order : "partner_id / dest_address_id"
+    res_company ||--o{ purchase_order : "company_id"
+    res_users |o--o{ purchase_order : "user_id"
+    account_payment_term |o--o{ purchase_order : "payment_term_id"
+
+    purchase_order ||--o{ purchase_order_line : "order_id"
+    product_product |o--o{ purchase_order_line : "product_id"
+    uom_uom |o--o{ purchase_order_line : "product_uom_id"
+    res_partner |o--o{ purchase_order_line : "partner_id"
+    res_company |o--o{ purchase_order_line : "company_id"
+
+    purchase_order_line ||--o{ pol_ptav_rel : "purchase_order_line_id"
+    ptav ||--o{ pol_ptav_rel : "product_template_attribute_value_id"
+</pre>
+</div>
   </div>
 </div>
 
 <div id="bar">
   <div id="title">
     <b>Odoo v19 CE 版 ERD 全景圖</b>
-    <span>聯絡人 + 商品主檔 · 24 個實體</span>
+    <span>聯絡人 + 商品主檔 + 採購 · 27 個實體</span>
   </div>
   <div id="spacer"></div>
   <div class="cluster" id="viewswitch">
     <button class="tbtn" data-goto="overview" aria-pressed="true" title="模組總覽">總覽</button>
     <button class="tbtn" data-goto="contacts" aria-pressed="false" title="聯絡人 · 12 個實體">聯絡人</button>
     <button class="tbtn" data-goto="product" aria-pressed="false" title="商品主檔 · 12 個實體">商品主檔</button>
+    <button class="tbtn" data-goto="purchase" aria-pressed="false" title="採購 · 3 個實體">採購</button>
   </div>
   <div class="cluster" id="zoomcluster">
     <button class="tbtn" id="zout" aria-label="縮小" title="縮小　−"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
@@ -575,16 +659,17 @@ erDiagram
       <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>這張圖現在涵蓋什麼</summary>
       <div class="in">
         <div class="fact a">
-          <p><strong>分成三張視圖，不是一張全景。</strong>總覽只畫模組方塊與接縫，點方塊進入該視圖；聯絡人與商品主檔各自一張，各 12 個實體。單張畫滿 24 個實體時全圖適配只剩 2.8px，視圖切分就是為了解決這件事。</p>
+          <p><strong>分成四張視圖，不是一張全景。</strong>總覽只畫模組方塊與接縫，點方塊進入該視圖；聯絡人與商品主檔各 12 個實體，採購 3 個。單張畫滿 24 個實體時全圖適配只剩 2.8px，視圖切分就是為了解決這件事。</p>
         </div>
         <div class="fact w">
-          <p><strong>標題寫「全景圖」，但只有兩塊。</strong>共 24 個實體。Odoo 19 CE 的完整 model 數量遠大於此，不要把這張圖當成完整的資料庫地圖。</p>
+          <p><strong>標題寫「全景圖」，但只有三塊。</strong>共 27 個實體。Odoo 19 CE 的完整 model 數量遠大於此，不要把這張圖當成完整的資料庫地圖。</p>
         </div>
         <p><strong>第一塊 · 聯絡人</strong>：<code>res.partner</code> 為中心，加上 <code>res.country</code>、<code>res.country.state</code>、<code>res.city</code>、<code>res.partner.category</code> 與其 m2m 中介表、<code>res.partner.industry</code>、<code>res.users</code>、<code>res.company</code>、<code>res.partner.bank</code>、<code>account.payment.term</code>、<code>account.account</code>。</p>
         <p><strong>第二塊 · 商品主檔</strong>：<code>product.template</code> / <code>product.product</code> 雙層，加上 <code>product.category</code> 分類樹、<code>uom.uom</code>、<code>product.uom</code> 條碼表、<code>product.supplierinfo</code> 供應商價目，以及產生變體的四層屬性系統（<code>product.attribute</code>、<code>product.attribute.value</code>、<code>product.template.attribute.line</code>、<code>product.template.attribute.value</code>）與兩張中介表。</p>
-        <p><strong>兩塊的接縫</strong>：<code>product.supplierinfo.partner_id</code> 指向 <code>res.partner</code>，且是 <code>required</code> + <code>cascade</code>。供應商價目是商品與聯絡人唯一的直接連結。商品視圖裡那個只有主鍵的 <code>res.partner</code> 是邊界節點，標示「這裡接到別的地方」，完整定義在聯絡人視圖。</p>
+        <p><strong>第三塊 · 採購</strong>：<code>purchase.order</code> 與 <code>purchase.order.line</code> 兩層，加上一張連到商品屬性值的 m2m 中介表。<code>purchase.*</code> 在這套環境只有 6 個 model，其中 <code>purchase.bill.union</code> 是 SQL view、<code>purchase.report</code> 是報表，真正要畫的就這三個。</p>
+        <p><strong>三塊的接縫</strong>：<code>product.supplierinfo.partner_id</code> 指向 <code>res.partner</code>，且是 <code>required</code> + <code>cascade</code>，這是商品與聯絡人唯一的直接連結。採購同時接住兩邊——<code>purchase.order.partner_id</code> 指向供應商（<code>required</code> + <code>restrict</code>）、<code>purchase.order.line.product_id</code> 指向商品變體，另有 <code>payment_term_id</code> 接到 <code>account.payment.term</code>。各視圖裡只有主鍵的框都是邊界節點，標示「這裡接到別的地方」，完整定義在它自己的視圖。</p>
         <p><strong>已畫但不在這一張裡</strong>：銷售鏈（<code>sale.order</code> → <code>stock.picking</code> → <code>account.move</code> 與其明細層，含 9 個實體）在同一資料夾的 <code>sale-chain.html</code>。那張圖的 <code>res.partner</code> 與 <code>product.product</code> 就是這裡的同一批記錄。</p>
-        <p><strong>尚未畫</strong>：採購鏈、庫存內部（<code>stock.quant</code>、<code>stock.location</code> 階層、補貨鏈）、會計側的對帳與稅務、價目表規則（<code>product.pricelist.item</code>）、商品標籤、製造、專案、人資，以及所有 <code>l10n_*</code> 在地化模組加上的欄位。</p>
+        <p><strong>尚未畫</strong>：庫存內部（<code>stock.quant</code>、<code>stock.location</code> 階層、補貨鏈）、會計側的對帳與稅務、價目表規則（<code>product.pricelist.item</code>）、商品標籤、製造、專案、人資，以及所有 <code>l10n_*</code> 在地化模組加上的欄位。</p>
         <p><strong>資料來源</strong>：<code>odoo-dev-19</code> 資料庫的 <code>ir_model_fields</code> 與 PostgreSQL 系統表，74 個模組已安裝（含 <code>l10n_tw</code>、<code>base_vat</code>）。查詢日期 2026-08-13。裝不同的模組會得到不同的欄位集合，這張圖反映的是這一套環境。</p>
       </div>
     </details>
@@ -754,6 +839,44 @@ OR ((type)::text &lt;&gt; 'contact'::text)</pre>
     </details>
 
     <details class="sec">
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>採購行的 product_id 是條件式必填</summary>
+      <div class="in">
+        <div class="fact a">
+          <p><code>ir_model_fields</code> 說 <code>purchase.order.line</code> 只有四個必填：<code>name</code>、<code>product_qty</code>、<code>price_unit</code>、<code>order_id</code>。<strong>那不是全部。</strong>真正的規則在兩條表層 CHECK 裡，和 <code>res.partner.name</code> 是同一類坑。</p>
+          <pre>purchase_order_line_accountable_required_fields
+  display_type IS NOT NULL OR is_downpayment
+  OR (product_id IS NOT NULL AND product_uom_id IS NOT NULL
+      AND date_planned IS NOT NULL)</pre>
+          <pre>purchase_order_line_non_accountable_null_fields
+  display_type IS NULL
+  OR (product_id IS NULL AND price_unit = 0
+      AND product_uom_qty = 0 AND product_uom_id IS NULL
+      AND date_planned IS NULL)</pre>
+          <p>合起來是：<strong>一般行</strong>（<code>display_type</code> 為 null 且非預付款）必須有 <code>product_id</code>、<code>product_uom_id</code>、<code>date_planned</code>；<strong>分節與備註行</strong>（<code>display_type</code> 為 <code>line_section</code>、<code>line_subsection</code> 或 <code>line_note</code>）反過來，那三欄必須留空，<code>price_unit</code> 與 <code>product_uom_qty</code> 必須是 0。</p>
+        </div>
+        <p>實查 23 行全部有 <code>product_id</code>，因為現有資料都是一般行。若照 <code>ir_model_fields</code> 的必填清單準備匯入欄位，一般行會被資料庫直接擋下。</p>
+        <p><code>line_subsection</code> 這個值沒有官方繁中翻譯，UI 上會顯示英文。</p>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>採購的匯入順序</summary>
+      <div class="in">
+        <div class="fact">
+          <p>一樣是<strong>從外鍵依賴推出來的建議</strong>，不是官方規定。依賴關係本身是實查結果。這一段假設聯絡人與商品都已匯完。</p>
+        </div>
+        <ol class="steps">
+          <li><strong>先確認圖外那兩個必填</strong>：<code>purchase.order</code> 必填 <code>currency_id</code>（指向 <code>res.currency</code>）與 <code>picking_type_id</code>（指向 <code>stock.picking.type</code>），兩者都是 <code>restrict</code>。它們不在這張圖上，但沒有就開不了單。</li>
+          <li><strong>採購單頭</strong>：<code>purchase.order</code>，六個必填 —— <code>name</code>、<code>date_order</code>、<code>company_id</code>、<code>currency_id</code>、<code>partner_id</code>、<code>picking_type_id</code>。<code>partner_id</code> 要的是供應商，<code>res.partner</code> 得先存在。</li>
+          <li><strong>採購明細</strong>：<code>purchase.order.line</code>，<code>order_id</code> 是 <code>cascade</code>，單頭刪掉明細跟著消失。一般行還要滿足上面那兩條 CHECK，所以 <code>product.product</code> 與 <code>uom.uom</code> 也得先在。</li>
+        </ol>
+        <div class="fact w">
+          <p><strong>單號沒有唯一約束。</strong><code>purchase_order</code> 上查不到任何 UNIQUE 或 CHECK（<code>pg_constraint</code> 回 0 筆），<code>name</code> 重複資料庫不會擋。重跑匯入會產生一批同號的單，去重要在來源端做。</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="sec">
       <summary><svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>我沒能替你確認的部分</summary>
       <div class="in">
         <p>誠實標示，免得你當成已查證的事實：</p>
@@ -798,7 +921,7 @@ FROM res_partner GROUP BY type;"</pre>
   <span><kbd>I</kbd> 說明</span>
 </div>
 
-<div id="boot"><p><i></i>正在繪製 3 張視圖 · 24 個實體</p></div>
+<div id="boot"><p><i></i>正在繪製 4 張視圖 · 27 個實體</p></div>
 <div id="err"><div id="errmsg"></div></div>
 
 <script type="module">
@@ -808,6 +931,16 @@ const ENTITY = {
     flag: '國家／州省／城市三層、標籤 m2m、以及掛在 partner 上的兩個會計碎片都在這裡。' },
   product: { role: '點此進入視圖', rows: [['實體','12'],['關係','21 條'],['雙層','範本 37 / 變體 47']],
     flag: '變體由四層屬性系統產生。計量單位在 19 已改版，uom.category 不存在了。', warn: true },
+
+  purchase: { role: '點此進入視圖', rows: [['實體','3'],['關係','11 條'],['採購單','11 筆 / 23 行']],
+    flag: 'product_id 不是欄位必填，是表層 CHECK 條件式必填；分節與備註行反而強制留空。', warn: true },
+
+  purchase_order: { role: '採購的交易主檔', rows: [['現有筆數','11'],['必填','6 個'],['狀態分布','draft 6 / purchase 4 / sent 1'],['外鍵','9 個，2 個指向圖外']],
+    flag: '單號 name 沒有 UNIQUE 約束，重複匯入不會被資料庫擋下來。', warn: true },
+  purchase_order_line: { role: '採購的交易明細', rows: [['現有筆數','23'],['欄位層必填','4 個'],['CHECK 必填','product_id、product_uom_id、date_planned'],['實查','23 行全部有 product_id']],
+    flag: 'display_type 有值時是分節或備註行，那三個欄位必須為 null，price_unit 與 product_uom_qty 必須為 0。兩條 CHECK 在 ir_model_fields 裡看不到。', warn: true },
+  pol_ptav_rel: { role: 'm2m 中介表', rows: [['現有筆數','0'],['複合主鍵','兩欄皆 NOT NULL'],['on_delete','訂單行 cascade / 屬性值 restrict']],
+    flag: '採購行上的非變體屬性值。目前沒有資料，要用到才會長出來。' },
 
   res_partner: { role: '導入的主角', rows: [['欄位總數','186'],['store=true','106'],['required','3'],['外鍵','23 個，散在 15 個實體'],['現有資料','45 筆，全 type=contact']],
     flag: '26 筆有母記錄、13 筆是公司。name 的必填由表層 CHECK 決定，不是欄位屬性。', warn: true },
@@ -864,7 +997,7 @@ let scale = 1, tx = 0, ty = 0;
 // 每張視圖各有自己的尺寸與節點表。box 不能共用：切過去後若沿用前一張的尺寸，
 // fit() 會算出錯的縮放。nodes 也必須分開，否則 res_partner 這種跨視圖出現的
 // key 會互相覆蓋
-const VIEW_IDS = ['overview', 'contacts', 'product'];
+const VIEW_IDS = ['overview', 'contacts', 'product', 'purchase'];
 const views = {};              // id -> { el, box, nodes: { key: node } }
 let currentView = VIEW_IDS[0];
 const curBox = () => views[currentView]?.box;
@@ -968,7 +1101,8 @@ function hideTip() {
 
 const GROUPS = [
   { label: '聯絡人', view: 'contacts', keys: ['res_partner','res_country','res_country_state','res_city','res_partner_category','partner_category_rel','res_partner_industry','res_users','res_company','res_partner_bank','account_payment_term','account_account'] },
-  { label: '商品主檔', view: 'product', keys: ['product_template','product_product','product_category','uom_uom','product_uom','product_supplierinfo','product_attribute','product_attribute_value','ptal','ptav','variant_combination','pav_ptal_rel'] }
+  { label: '商品主檔', view: 'product', keys: ['product_template','product_product','product_category','uom_uom','product_uom','product_supplierinfo','product_attribute','product_attribute_value','ptal','ptav','variant_combination','pav_ptal_rel'] },
+  { label: '採購', view: 'purchase', keys: ['purchase_order','purchase_order_line','pol_ptav_rel'] }
 ];
 // key -> 它的正典視圖。product 視圖裡的 res_partner 是邊界節點、不列入 GROUPS，
 // 所以索引只會有一個 res_partner，點它一律回聯絡人視圖看完整定義

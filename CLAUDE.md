@@ -68,13 +68,14 @@ WHERE m.model='stock.picking' AND f.name='backorder_id';"
 - **`field_description` 與 `help` 是 jsonb。**直接 `SELECT` 會噴 `invalid input syntax for type json`，要用 `->>'en_US'`。
 - **`related` 欄位在資料庫裡不存在。**`product.product` 有 15 個欄位（含 `name`、`list_price`）是 related 到 `product_tmpl_id.*`，ORM 會穿透但 SQL 查不到。做報表或跟 RD 談 join 條件時這個差異是關鍵。
 - 統計欄位時記得排除 `create_uid` / `write_uid` / `create_date` / `write_date`，它們每個 model 都有，是雜訊。
-- **官方 zh_TW 標籤查得到，但不能照單全收。**`odoo-dev-19` 的 zh_TW 是 active 的，`field_description->>'zh_TW'` 全庫 8217/8471 個欄位有值，本圖涵蓋的 101 個 model 欄位中 99 個有翻譯。它是實查事實（使用者切繁中時真的會看到這些字），但品質參差，2026-08-14 逐條比對後確認至少四類問題：
+- **`ir_model` 的 model 數會高估要畫的實體數。**排除 `transient`（wizard）之後還要再排除 SQL view：`purchase.*` 有 6 個非 transient 的 model，但 `purchase.bill.union` 是 view、`purchase.report` 是報表、`purchase.bill.line.match` 是檢視畫面、`purchase.edi.xml.ubl_bis3` 是 EDI 格式，真正有實體表要畫的只有 `purchase.order` 與 `purchase.order.line`。用 `pg_class.relkind` 分辨（`r` 實體表、`v` SQL view）。估算庫存（26 個）與會計（56 個）的工作量前先跑這一步，否則會高估好幾倍。
+- **官方 zh_TW 標籤查得到，但不能照單全收。**`odoo-dev-19` 的 zh_TW 是 active 的，`field_description->>'zh_TW'` 全庫 8217/8471 個欄位有值，本圖涵蓋的 128 個 model 欄位中 126 個有翻譯。它是實查事實（使用者切繁中時真的會看到這些字），但品質參差，2026-08-14 逐條比對後確認至少四類問題：
   - **語意錯**：`res.partner.state_id` 譯「狀態」（實為州／省，同庫 `res.city.state_id` 卻譯「州/省」）；`res.partner.bank.partner_id` 譯「科目持有人」（en 為 Account Holder，此處 Account 是帳戶非會計科目）；`res.partner.group_on` 譯「平日」。
   - **中國用字**：「賬」而非「帳」（`autopost_bills` 譯「自動過賬賬單」、`property_account_*_id` 譯「應收／應付賬戶」）。
   - **同概念不同譯**：`customer_rank`「客戶評級」對 `supplier_rank`「供應商排名」；`property_payment_term_id`「客戶支付條款」對 `account.payment.term.name`「付款條件」；`res.company.partner_id`「業務夥伴」對 `res.users.partner_id`「相關的合作夥伴」；`product.template.attribute.line`「產品範本…」對 `.value`「產品模板…」。
   - **缺翻譯**：`res.partner.group_rfq`、`res.partner.bank.l10n_us_bank_account_type` 無 zh_TW。
 
-  引用官方譯法時要標明來源是 zh_TW 語言包；自己改寫成台灣慣用語則屬建議，兩者不可混為一談。圖上 `property_account_receivable_id` 等四條刻意保留專案自訂的台灣會計用語（應收科目／應付科目／客戶付款條件／供應商付款條件），不採官方譯法。107 個欄位的完整中英對照與疑義清單見 [odoo-v19ce-erd-欄位中英對照表.xlsx](odoo-v19ce-erd-欄位中英對照表.xlsx)（2026-08-14 實查）。**加新模組時記得同步更新它**，否則對照表會與圖不一致。
+  引用官方譯法時要標明來源是 zh_TW 語言包；自己改寫成台灣慣用語則屬建議，兩者不可混為一談。圖上 `property_account_receivable_id` 等四條刻意保留專案自訂的台灣會計用語（應收科目／應付科目／客戶付款條件／供應商付款條件），不採官方譯法。136 條屬性行的完整中英對照與疑義清單見 [odoo-v19ce-erd-欄位中英對照表.xlsx](odoo-v19ce-erd-欄位中英對照表.xlsx)（2026-08-18 含採購重建）。**加新模組時記得同步更新它**，否則對照表會與圖不一致。
 
 ### Mermaid
 
@@ -98,15 +99,18 @@ WHERE m.model='stock.picking' AND f.name='backorder_id';"
 
 ## 視圖架構
 
-圖分成三張視圖，不是一張。單張畫滿 24 個實體時全圖適配只剩 2.8px；加上會計、庫存、採購之後會到 50–60 個實體，單張屆時完全不可讀。
+圖分成四張視圖，不是一張。單張畫滿 24 個實體時全圖適配只剩 2.8px；加上會計、庫存之後會到 50–60 個實體，單張屆時完全不可讀。
 
 | 視圖 id | 內容 | 節點數 | 尺寸 | 適配後字級 |
 |---|---|---|---|---|
-| `overview` | 模組方塊與接縫，不畫欄位 | 2 | 449×698 | **14.6px** |
-| `contacts` | 聯絡人 | 12 | 2734×2493 | 4.1px |
-| `product` | 商品主檔 + 2 個邊界節點 | 14 | 4904×1748 | 3.5px |
+| `overview` | 模組方塊與接縫，不畫欄位 | 3 | 678×965 | **12.0px** |
+| `contacts` | 聯絡人 | 12 | 2734×2493 | 4.6px |
+| `product` | 商品主檔 + 2 個邊界節點 | 14 | 4904×1748 | 4.0px |
+| `purchase` | 採購 + 7 個邊界節點 | 10 | 2775×1730 | 6.7px |
 
-尺寸為 2026-08-15 在 1440×900 實測。**細節視圖的全圖適配仍然讀不了**——真正改善的是總覽這一層（14.6px 可讀），以及往後的可擴充性：加一塊模組是加一張視圖，不會把現有視圖撐大。
+尺寸為 2026-08-18 加入採購後在 1440×900 重測，適配後字級＝16px 基準字乘上適配縮放。**細節視圖的全圖適配仍然讀不了**，要靠索引跳點（`focusEntity` 有 `READABLE = .75` 的縮放下限，點過去一定看得清）。
+
+**加模組不會撐大既有的細節視圖，但會撐大總覽。**採購加進來後 `overview` 從 2 個方塊 449×698 變成 3 個方塊 678×965，適配字級從 14.6px 掉到 12.0px；`contacts` 與 `product` 的尺寸則完全沒變。總覽是唯一會隨模組數線性成長的視圖，再加三四塊就要考慮改成兩欄排列或分層。
 
 幾條實作約定：
 
